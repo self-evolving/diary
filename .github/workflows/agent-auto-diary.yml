@@ -1,0 +1,457 @@
+name: Agent / Auto Diary
+
+on:
+  schedule:
+    - cron: "30 11 * * *" # Daily at 7:30 AM ET / 11:30 AM UTC
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "Override the signal window in days. Empty derives it from the newest content/diary entry."
+        required: false
+        default: ""
+        type: string
+      source_repo:
+        description: "Repository whose development the diary narrates."
+        required: false
+        default: "self-evolving/repo"
+        type: string
+      base_branch:
+        description: "Optional base branch for the generated PR. Defaults to the repository default branch."
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: read
+  discussions: read
+  id-token: write # required for GitHub Actions OIDC broker exchange
+
+concurrency:
+  group: agent-auto-diary-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  pre_gate:
+    if: vars.AGENT_ENABLED != 'false'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+      mode: ${{ steps.gate.outputs.mode }}
+      reason: ${{ steps.gate.outputs.reason }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve scheduled disabled gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ github.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-auto-diary.yml
+
+  signals:
+    needs: pre_gate
+    if: vars.AGENT_ENABLED != 'false' && needs.pre_gate.outputs.skip != 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      LOOKBACK_DAYS: ${{ inputs.lookback_days || '' }}
+      SOURCE_REPO: ${{ inputs.source_repo || 'self-evolving/repo' }}
+    outputs:
+      skip: ${{ steps.gate.outputs.skip }}
+      reason: ${{ steps.gate.outputs.reason }}
+      entry_date: ${{ steps.signals.outputs.entry_date }}
+      since: ${{ steps.signals.outputs.since }}
+      source_repo: ${{ steps.signals.outputs.source_repo }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Gather diary signals
+        id: signals
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          REPO_SLUG: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          signals_dir="${RUNNER_TEMP}/auto-diary-signals"
+          rm -rf "${signals_dir}"
+          mkdir -p "${signals_dir}"
+
+          entry_date="$(date -u +%Y-%m-%d)"
+
+          # Cursor: newest dated entry in content/diary, unless a lookback
+          # override was given. Windows overlap the last entry's day on
+          # purpose — the prompt dedupes against recent entries — because a
+          # gap would silently drop same-day activity recorded after the
+          # previous run.
+          last_entry="$( (ls content/diary 2>/dev/null || true) \
+            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}\.md$' | sort | tail -1 | sed 's/\.md$//' )"
+          if [ -n "${LOOKBACK_DAYS}" ]; then
+            since="$(date -u -d "${LOOKBACK_DAYS} days ago" +%Y-%m-%dT00:00:00Z)"
+          elif [ -n "${last_entry}" ]; then
+            since="${last_entry}T00:00:00Z"
+          else
+            since="$(date -u -d '7 days ago' +%Y-%m-%dT00:00:00Z)"
+          fi
+
+          # Source repository development activity (hard-fail: this is the
+          # diary's core material).
+          gh api "repos/${SOURCE_REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100" \
+            --jq "[.[] | select(.merged_at != null and .merged_at >= \"${since}\") |
+              {number, title, url: .html_url, merged_at, author: .user.login,
+               body: ((.body // \"\") | .[0:2000])}]" \
+            > "${signals_dir}/source-merged-prs.json"
+
+          gh api "repos/${SOURCE_REPO}/issues?state=all&sort=updated&direction=desc&since=${since}&per_page=100" \
+            --jq "[.[] | select(has(\"pull_request\") | not) |
+              {number, title, url: .html_url, state, updated_at, author: .user.login,
+               comments, body: ((.body // \"\") | .[0:2000])}]" \
+            > "${signals_dir}/source-issues.json"
+
+          gh api "repos/${SOURCE_REPO}/releases?per_page=10" \
+            --jq "[.[] | select(.published_at != null and .published_at >= \"${since}\") |
+              {tag_name, name, url: .html_url, published_at,
+               body: ((.body // \"\") | .[0:3000])}]" \
+            > "${signals_dir}/source-releases.json"
+
+          # Reader interactions on this repository (soft-fail: discussions
+          # may not be enabled yet, and a missing reader signal should not
+          # kill the entry).
+          gh api graphql \
+            -f owner="${REPO_SLUG%/*}" -f name="${REPO_SLUG#*/}" \
+            -f query='query($owner: String!, $name: String!) {
+              repository(owner: $owner, name: $name) {
+                discussions(last: 50) {
+                  nodes {
+                    number title url createdAt updatedAt
+                    author { login }
+                    body
+                    comments(last: 50) {
+                      nodes {
+                        url createdAt author { login } body
+                        replies(last: 20) { nodes { url createdAt author { login } body } }
+                      }
+                    }
+                  }
+                }
+              }
+            }' \
+            --jq "[.data.repository.discussions.nodes[] | select(.updatedAt >= \"${since}\")]" \
+            > "${signals_dir}/diary-discussions.json" \
+            || echo '[]' > "${signals_dir}/diary-discussions.json"
+
+          gh api "repos/${REPO_SLUG}/issues?state=all&sort=updated&direction=desc&since=${since}&per_page=50" \
+            --jq "[.[] | select((has(\"pull_request\") | not) and .user.type != \"Bot\") |
+              {number, title, url: .html_url, state, updated_at, author: .user.login,
+               comments, body: ((.body // \"\") | .[0:2000])}]" \
+            > "${signals_dir}/diary-issues.json" \
+            || echo '[]' > "${signals_dir}/diary-issues.json"
+
+          merged_pr_count="$(jq 'length' "${signals_dir}/source-merged-prs.json")"
+          source_issue_count="$(jq 'length' "${signals_dir}/source-issues.json")"
+          release_count="$(jq 'length' "${signals_dir}/source-releases.json")"
+          discussion_count="$(jq 'length' "${signals_dir}/diary-discussions.json")"
+          diary_issue_count="$(jq 'length' "${signals_dir}/diary-issues.json")"
+
+          jq -n \
+            --arg entry_date "${entry_date}" \
+            --arg since "${since}" \
+            --arg last_entry "${last_entry}" \
+            --arg source_repo "${SOURCE_REPO}" \
+            --argjson merged_prs "${merged_pr_count}" \
+            --argjson source_issues "${source_issue_count}" \
+            --argjson releases "${release_count}" \
+            --argjson discussions "${discussion_count}" \
+            --argjson diary_issues "${diary_issue_count}" \
+            '{entry_date: $entry_date, since: $since, last_entry: $last_entry,
+              source_repo: $source_repo,
+              counts: {merged_prs: $merged_prs, source_issues: $source_issues,
+                       releases: $releases, discussions: $discussions,
+                       diary_issues: $diary_issues}}' \
+            > "${signals_dir}/meta.json"
+
+          {
+            echo "signals_dir=${signals_dir}"
+            echo "entry_date=${entry_date}"
+            echo "since=${since}"
+            echo "source_repo=${SOURCE_REPO}"
+            echo "activity_count=$((merged_pr_count + source_issue_count + release_count + discussion_count + diary_issue_count))"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Resolve scheduled activity gate
+        id: gate
+        uses: ./.github/actions/scheduled-activity-gate
+        with:
+          github_token: ${{ steps.auth.outputs.token }}
+          schedule_policy: ${{ vars.AGENT_SCHEDULE_POLICY || '' }}
+          workflow: agent-auto-diary.yml
+          activity_count: ${{ steps.signals.outputs.activity_count }}
+
+      - name: Upload diary signals
+        if: steps.gate.outputs.skip != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: auto-diary-signals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.signals.outputs.signals_dir }}/
+          retention-days: 1
+
+      - name: Write skip summary
+        if: steps.gate.outputs.skip == 'true'
+        env:
+          REASON: ${{ steps.gate.outputs.reason }}
+        run: |
+          {
+            echo "## Auto Diary"
+            echo
+            echo "Skipped: ${REASON}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  compose:
+    needs: signals
+    if: >-
+      vars.AGENT_ENABLED != 'false' &&
+      needs.signals.result == 'success' &&
+      needs.signals.outputs.skip != 'true'
+    runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
+    env:
+      SIGNALS_DIR: ${{ github.workspace }}/../auto-diary-signals
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ github.event.repository.default_branch }}
+          token: ${{ github.token }}
+
+      # Deliberately outside the workspace: signal files must never show up
+      # as worktree changes, or they would trip the content guard and the
+      # commit step.
+      - name: Download diary signals
+        uses: actions/download-artifact@v4
+        with:
+          name: auto-diary-signals-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.SIGNALS_DIR }}
+
+      - name: Resolve GitHub auth
+        id: auth
+        uses: ./.github/actions/resolve-github-auth
+        with:
+          app_id: ${{ secrets.AGENT_APP_ID }}
+          app_private_key: ${{ secrets.AGENT_APP_PRIVATE_KEY }}
+          pat: ${{ secrets.AGENT_PAT }}
+          fallback_token: ${{ github.token }}
+
+      - name: Resolve auto-diary provider
+        id: provider
+        uses: ./.github/actions/resolve-agent-provider
+        with:
+          route: auto-diary
+          default_provider: ${{ vars.AGENT_DEFAULT_PROVIDER || 'auto' }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model_policy: ${{ vars.AGENT_MODEL_POLICY || '' }}
+
+      - name: Setup agent runtime
+        uses: ./.github/actions/setup-agent-runtime
+        with:
+          install_codex: ${{ steps.provider.outputs.install_codex }}
+          install_claude: ${{ steps.provider.outputs.install_claude }}
+
+      - name: Resolve implementation base
+        id: implementation_base
+        env:
+          BASE_BRANCH: ${{ inputs.base_branch || '' }}
+          BASE_PR: ""
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .agent/dist/cli/resolve-implementation-base.js
+
+      - name: Create auto-diary branch
+        env:
+          BRANCH: agent/auto-diary/${{ steps.provider.outputs.provider }}-${{ github.run_id }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          echo "BRANCH=${BRANCH}" >> "$GITHUB_ENV"
+          AUTH_HEADER="$(node -e "process.stdout.write(Buffer.from('x-access-token:' + process.env.GH_TOKEN).toString('base64'))")"
+          git -c "http.${GITHUB_SERVER_URL}/.extraheader=AUTHORIZATION: basic ${AUTH_HEADER}" fetch origin "refs/heads/${BASE_BRANCH}"
+          git checkout -b "${BRANCH}" FETCH_HEAD
+
+      - name: Resolve task timeout
+        id: task_timeout
+        env:
+          AGENT_TASK_TIMEOUT_POLICY: ${{ vars.AGENT_TASK_TIMEOUT_POLICY || '' }}
+          ROUTE: implement
+        run: node .agent/dist/cli/resolve-task-timeout.js
+
+      - name: Run auto-diary agent
+        id: agent
+        timeout-minutes: ${{ fromJson(steps.task_timeout.outputs.minutes || '30') }}
+        uses: ./.github/actions/run-agent-task
+        with:
+          agent: ${{ steps.provider.outputs.provider }}
+          github_token: ${{ steps.auth.outputs.token }}
+          secondary_github_token: ${{ secrets.AGENT_SECONDARY_GITHUB_TOKEN }}
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          claude_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ steps.provider.outputs.model }}
+          display_model: ${{ vars.AGENT_DISPLAY_MODEL || '' }}
+          permission_mode: approve-all
+          prompt: garden-auto-diary
+          route: implement
+          memory_ref: ${{ vars.AGENT_MEMORY_REF || 'agent/memory' }}
+          memory_policy: ${{ vars.AGENT_MEMORY_POLICY || '' }}
+          rubrics_ref: ${{ vars.AGENT_RUBRICS_REF || 'agent/rubrics' }}
+          rubrics_policy: ${{ vars.AGENT_RUBRICS_POLICY || '' }}
+          rubrics_limit: ${{ vars.AGENT_RUBRICS_LIMIT || '10' }}
+          session_policy: none
+          request_text: |-
+            Compose the diary entry for ${{ needs.signals.outputs.entry_date }}.
+
+            Signal files gathered since ${{ needs.signals.outputs.since }} are in
+            ${{ env.SIGNALS_DIR }} (start with meta.json for the counts).
+
+            Source repository whose development this diary narrates:
+            ${{ needs.signals.outputs.source_repo }}
+          requested_by: ${{ github.actor }}
+          source_kind: workflow_dispatch
+          target_kind: repository
+          target_number: "0"
+          target_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          reasoning_effort: ${{ steps.provider.outputs.reasoning_effort || 'high' }}
+          workflow: agent-auto-diary.yml
+
+      # Deterministic blast-radius guard: reader comments are part of this
+      # route's prompt, so no run of it may touch anything outside content/,
+      # regardless of what the agent was talked into.
+      - name: Enforce content-only changes
+        if: steps.agent.outcome == 'success'
+        run: |
+          set -euo pipefail
+          violations="$(
+            {
+              git diff --name-only
+              git diff --name-only --cached
+              git ls-files --others --exclude-standard
+            } | sed '/^$/d' | sort -u | (grep -Ev '^content/' || true)
+          )"
+          if [ -n "${violations}" ]; then
+            echo "::error::auto-diary produced changes outside content/; refusing to continue"
+            printf '%s\n' "${violations}"
+            exit 1
+          fi
+
+      - name: Verify changes
+        if: always()
+        id: verify
+        run: node .agent/dist/cli/verify.js
+
+      - name: Validate generated site
+        if: steps.agent.outcome == 'success' && steps.verify.outputs.has_changes == 'true'
+        id: site_validation
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run check
+          npm run build
+
+      - name: Resolve validation result
+        if: always()
+        id: validation_result
+        env:
+          VERIFY_EXIT_CODE: ${{ steps.verify.outputs.verify_exit_code }}
+          SITE_VALIDATION_OUTCOME: ${{ steps.site_validation.outcome || 'skipped' }}
+        run: |
+          set -euo pipefail
+          verify_exit="${VERIFY_EXIT_CODE:-1}"
+          site_outcome="${SITE_VALIDATION_OUTCOME:-skipped}"
+          resolved="0"
+          if [ "$verify_exit" != "0" ]; then
+            resolved="$verify_exit"
+          elif [ "$site_outcome" = "failure" ] || [ "$site_outcome" = "cancelled" ]; then
+            resolved="1"
+          fi
+          echo "verify_exit_code=${resolved}" >> "$GITHUB_OUTPUT"
+
+      - name: Parse response
+        if: always()
+        id: response
+        env:
+          AGENT_EXIT_CODE: ${{ steps.agent.outcome == 'success' && '0' || '1' }}
+          HAS_CHANGES: ${{ steps.verify.outputs.has_changes }}
+          RESPONSE_FILE: ${{ steps.agent.outputs.response_file }}
+          VERIFY_EXIT_CODE: ${{ steps.validation_result.outputs.verify_exit_code }}
+        run: node .agent/dist/cli/parse-response.js
+
+      - name: Commit and push
+        if: steps.response.outputs.status == 'success'
+        id: commit
+        env:
+          BRANCH: ${{ env.BRANCH }}
+          COMMIT_MESSAGE: >-
+            ${{ steps.response.outputs.commit_message || format('feat: diary entry for {0}', needs.signals.outputs.entry_date) }}
+          GIT_BOT_EMAIL: ${{ vars.AGENT_COMMITTER_EMAIL || '' }}
+          GIT_BOT_NAME: ${{ vars.AGENT_COMMITTER_NAME || '' }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          SET_UPSTREAM: "true"
+        run: node .agent/dist/cli/commit.js
+
+      - name: Create pull request
+        if: steps.commit.outputs.committed == 'true'
+        id: pr
+        env:
+          BASE_BRANCH: ${{ env.BASE_BRANCH }}
+          BRANCH: ${{ env.BRANCH }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          ISSUE_NUMBER: ""
+          PR_BODY: ${{ steps.response.outputs.pr_body }}
+          PR_TITLE: >-
+            ${{ steps.response.outputs.pr_title || format('Diary entry for {0}', needs.signals.outputs.entry_date) }}
+          REQUESTED_BY: ${{ github.actor }}
+        run: node .agent/dist/cli/create-pr.js
+
+      - name: Write job summary
+        if: always()
+        env:
+          PR_URL: ${{ steps.pr.outputs.pr_url }}
+          STATUS: ${{ steps.response.outputs.status || 'failed' }}
+          SUMMARY: ${{ steps.response.outputs.summary }}
+        run: |
+          {
+            echo "## Auto Diary"
+            echo
+            echo "Status: ${STATUS}"
+            if [ -n "${SUMMARY}" ]; then
+              echo
+              echo "${SUMMARY}"
+            fi
+            if [ -n "${PR_URL}" ]; then
+              echo
+              echo "Pull request: ${PR_URL}"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
