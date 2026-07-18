@@ -1,0 +1,20 @@
+.DS_Store
+.gitignore
+node_modules
+public
+prof
+tsconfig.tsbuildinfo
+.obsidian
+.quartz-cache
+private/
+.replit
+replit.nix
+.quartz/
+quartz/cli/tui/dist/
+.agent/node_modules/
+.agent/dist/
+
+# local secrets — never publish
+.env
+.env.*
+!.env.example
