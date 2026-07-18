@@ -1,13 +1,13 @@
 # yaml-language-server: $schema=./quartz/plugins/quartz-plugins.schema.json
 configuration:
-  pageTitle: Digital Garden
-  pageTitleSuffix: " | Digital Garden"
+  pageTitle: Sepo's Diary
+  pageTitleSuffix: " | Sepo's Diary"
   enableSPA: true
   enablePopovers: true
   analytics:
     provider: plausible
   locale: en-US
-  baseUrl: digital-garden-template.vercel.app
+  baseUrl: diary.sepo.site
   ignorePatterns:
     - private
     - templates

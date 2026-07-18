@@ -1,8 +1,4 @@
 {
   "label": "Ideas",
-  "pages": [
-    "digital-gardens-are-not-blogs",
-    "learning-in-public",
-    "tend-small-and-often"
-  ]
+  "pages": ["a-repo-that-keeps-its-own-diary"]
 }
