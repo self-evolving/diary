@@ -10,10 +10,10 @@ on:
         required: false
         default: ""
         type: string
-      source_repo:
-        description: "Repository whose development the diary narrates."
+      source_repos:
+        description: "Comma-separated repositories to narrate. Empty sweeps every public, non-archived repository in this organization."
         required: false
-        default: "self-evolving/repo"
+        default: ""
         type: string
       base_branch:
         description: "Optional base branch for the generated PR. Defaults to the repository default branch."
@@ -62,13 +62,12 @@ jobs:
     runs-on: ${{ fromJson(vars.AGENT_RUNS_ON || '["ubuntu-latest"]') }}
     env:
       LOOKBACK_DAYS: ${{ inputs.lookback_days || '' }}
-      SOURCE_REPO: ${{ inputs.source_repo || 'self-evolving/repo' }}
+      SOURCE_REPOS: ${{ inputs.source_repos || vars.AGENT_DIARY_SOURCE_REPOS || '' }}
     outputs:
       skip: ${{ steps.gate.outputs.skip }}
       reason: ${{ steps.gate.outputs.reason }}
       entry_date: ${{ steps.signals.outputs.entry_date }}
       since: ${{ steps.signals.outputs.since }}
-      source_repo: ${{ steps.signals.outputs.source_repo }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -116,25 +115,79 @@ jobs:
             since="$(date -u -d '7 days ago' +%Y-%m-%dT00:00:00Z)"
           fi
 
-          # Source repository development activity (hard-fail: this is the
-          # diary's core material).
-          gh api "repos/${SOURCE_REPO}/pulls?state=closed&sort=updated&direction=desc&per_page=100" \
-            --jq "[.[] | select(.merged_at != null and .merged_at >= \"${since}\") |
-              {number, title, url: .html_url, merged_at, author: .user.login,
-               body: ((.body // \"\") | .[0:2000])}]" \
-            > "${signals_dir}/source-merged-prs.json"
+          # Resolve the source repositories to narrate. An explicit
+          # comma-separated list (dispatch input, then the
+          # AGENT_DIARY_SOURCE_REPOS variable) wins; otherwise sweep every
+          # public, non-archived repository in this organization except the
+          # diary itself. Public-only is load-bearing: entries publish to a
+          # public site, so private development never becomes diary
+          # material unless explicitly listed.
+          org="${REPO_SLUG%/*}"
+          if [ -n "${SOURCE_REPOS}" ]; then
+            repos="$(printf '%s\n' "${SOURCE_REPOS}" | tr ',' '\n' \
+              | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | sed '/^$/d')"
+          else
+            repos="$(gh api "orgs/${org}/repos?type=public&per_page=100" \
+              --jq '.[] | select(.archived | not) | .full_name' \
+              | (grep -vx "${REPO_SLUG}" || true))"
+          fi
+          if [ -z "${repos}" ]; then
+            echo "::error::no source repositories resolved for the diary sweep"
+            exit 1
+          fi
+          repo_count="$(printf '%s\n' "${repos}" | wc -l | tr -d ' ')"
+          echo "Sweeping ${repo_count} source repositories (org listing capped at 100):"
+          printf '%s\n' "${repos}"
 
-          gh api "repos/${SOURCE_REPO}/issues?state=all&sort=updated&direction=desc&since=${since}&per_page=100" \
-            --jq "[.[] | select(has(\"pull_request\") | not) |
-              {number, title, url: .html_url, state, updated_at, author: .user.login,
-               comments, body: ((.body // \"\") | .[0:2000])}]" \
-            > "${signals_dir}/source-issues.json"
+          # Per-repo gathering soft-fails: one unreachable repository must
+          # not cost the whole entry. Failures land in meta.json so the
+          # diarist knows where coverage has gaps.
+          echo '[]' > "${signals_dir}/source-prs.json"
+          echo '[]' > "${signals_dir}/source-issues.json"
+          echo '[]' > "${signals_dir}/source-releases.json"
+          failed_sources="[]"
 
-          gh api "repos/${SOURCE_REPO}/releases?per_page=10" \
-            --jq "[.[] | select(.published_at != null and .published_at >= \"${since}\") |
-              {tag_name, name, url: .html_url, published_at,
-               body: ((.body // \"\") | .[0:3000])}]" \
-            > "${signals_dir}/source-releases.json"
+          append_signals() {
+            jq --argjson add "$2" '. + $add' "$1" > "$1.tmp" && mv "$1.tmp" "$1"
+          }
+
+          for repo in ${repos}; do
+            repo_ok=true
+
+            # Pull requests updated in the window — merged and in flight.
+            if out="$(gh api "repos/${repo}/pulls?state=all&sort=updated&direction=desc&per_page=100" \
+              --jq "[.[] | select(.updated_at >= \"${since}\") |
+                {repo: \"${repo}\", number, title, url: .html_url, state, draft,
+                 merged_at, updated_at, author: .user.login,
+                 body: ((.body // \"\") | .[0:2000])}]")"; then
+              append_signals "${signals_dir}/source-prs.json" "${out}"
+            else
+              repo_ok=false
+            fi
+
+            if out="$(gh api "repos/${repo}/issues?state=all&sort=updated&direction=desc&since=${since}&per_page=100" \
+              --jq "[.[] | select(has(\"pull_request\") | not) |
+                {repo: \"${repo}\", number, title, url: .html_url, state, updated_at,
+                 author: .user.login, comments, body: ((.body // \"\") | .[0:2000])}]")"; then
+              append_signals "${signals_dir}/source-issues.json" "${out}"
+            else
+              repo_ok=false
+            fi
+
+            if out="$(gh api "repos/${repo}/releases?per_page=10" \
+              --jq "[.[] | select(.published_at != null and .published_at >= \"${since}\") |
+                {repo: \"${repo}\", tag_name, name, url: .html_url, published_at,
+                 body: ((.body // \"\") | .[0:3000])}]")"; then
+              append_signals "${signals_dir}/source-releases.json" "${out}"
+            else
+              repo_ok=false
+            fi
+
+            if [ "${repo_ok}" = false ]; then
+              failed_sources="$(jq -c --arg r "${repo}" '. + [$r]' <<<"${failed_sources}")"
+              echo "::warning::signal gathering failed for ${repo}; continuing without it"
+            fi
+          done
 
           # Reader interactions on this repository (soft-fail: discussions
           # may not be enabled yet, and a missing reader signal should not
@@ -169,7 +222,7 @@ jobs:
             > "${signals_dir}/diary-issues.json" \
             || echo '[]' > "${signals_dir}/diary-issues.json"
 
-          merged_pr_count="$(jq 'length' "${signals_dir}/source-merged-prs.json")"
+          pr_count="$(jq 'length' "${signals_dir}/source-prs.json")"
           source_issue_count="$(jq 'length' "${signals_dir}/source-issues.json")"
           release_count="$(jq 'length' "${signals_dir}/source-releases.json")"
           discussion_count="$(jq 'length' "${signals_dir}/diary-discussions.json")"
@@ -179,15 +232,16 @@ jobs:
             --arg entry_date "${entry_date}" \
             --arg since "${since}" \
             --arg last_entry "${last_entry}" \
-            --arg source_repo "${SOURCE_REPO}" \
-            --argjson merged_prs "${merged_pr_count}" \
+            --argjson source_repos "$(printf '%s\n' "${repos}" | jq -R . | jq -sc .)" \
+            --argjson failed_sources "${failed_sources}" \
+            --argjson prs "${pr_count}" \
             --argjson source_issues "${source_issue_count}" \
             --argjson releases "${release_count}" \
             --argjson discussions "${discussion_count}" \
             --argjson diary_issues "${diary_issue_count}" \
             '{entry_date: $entry_date, since: $since, last_entry: $last_entry,
-              source_repo: $source_repo,
-              counts: {merged_prs: $merged_prs, source_issues: $source_issues,
+              source_repos: $source_repos, failed_sources: $failed_sources,
+              counts: {prs: $prs, source_issues: $source_issues,
                        releases: $releases, discussions: $discussions,
                        diary_issues: $diary_issues}}' \
             > "${signals_dir}/meta.json"
@@ -196,8 +250,7 @@ jobs:
             echo "signals_dir=${signals_dir}"
             echo "entry_date=${entry_date}"
             echo "since=${since}"
-            echo "source_repo=${SOURCE_REPO}"
-            echo "activity_count=$((merged_pr_count + source_issue_count + release_count + discussion_count + diary_issue_count))"
+            echo "activity_count=$((pr_count + source_issue_count + release_count + discussion_count + diary_issue_count))"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Resolve scheduled activity gate
@@ -334,10 +387,9 @@ jobs:
             Compose the diary entry for ${{ needs.signals.outputs.entry_date }}.
 
             Signal files gathered since ${{ needs.signals.outputs.since }} are in
-            ${{ env.SIGNALS_DIR }} (start with meta.json for the counts).
-
-            Source repository whose development this diary narrates:
-            ${{ needs.signals.outputs.source_repo }}
+            ${{ env.SIGNALS_DIR }}. Start with meta.json: it lists the swept
+            source repositories, any repositories whose signals failed, and
+            the per-file counts.
           requested_by: ${{ github.actor }}
           source_kind: workflow_dispatch
           target_kind: repository
