@@ -487,6 +487,34 @@ jobs:
           REQUESTED_BY: ${{ github.actor }}
         run: node .agent/dist/cli/create-pr.js
 
+      # Hand the fresh PR to the orchestrator (heuristics mode): it
+      # dispatches the agent review, and — only when the repository opts in
+      # via AGENT_ALLOW_SELF_APPROVE / AGENT_ALLOW_SELF_MERGE — continues
+      # through provenance-checked self-approval and current-head
+      # self-merge. With the variables unset the chain stops at the review.
+      - name: Orchestrate automation handoff
+        if: >-
+          always() &&
+          steps.auth.outputs.token &&
+          steps.pr.outputs.pr_number
+        env:
+          AUTOMATION_CURRENT_ROUND: "1"
+          AUTOMATION_MAX_ROUNDS: "12"
+          AUTOMATION_MODE: heuristics
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          NEXT_TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
+          ORCHESTRATION_ENABLED: "true"
+          REQUESTED_BY: ${{ github.actor }}
+          REQUEST_TEXT: >-
+            Auto-diary entry for ${{ needs.signals.outputs.entry_date }}
+          SESSION_BUNDLE_MODE: ${{ vars.AGENT_SESSION_BUNDLE_MODE || 'auto' }}
+          SOURCE_ACTION: implement
+          SOURCE_CONCLUSION: ${{ steps.response.outputs.status || 'failed' }}
+          TARGET_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: node .agent/dist/cli/dispatch-agent-orchestrator.js
+
       - name: Write job summary
         if: always()
         env:

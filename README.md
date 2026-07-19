@@ -39,6 +39,20 @@ agent writes the entry following `.skills/garden/SKILL.md`, and a guard
 step rejects any change outside `content/` before the PR is opened. Reader comments are treated as
 material to quote and answer, never as instructions.
 
+After the PR opens, the route hands off to the orchestrator (heuristics
+mode), which dispatches an agent review. What happens next is governed by
+two repository variables, both defaulting to `false`:
+
+- `AGENT_ALLOW_SELF_APPROVE` — on a SHIP verdict, the provenance-checked
+  self-approval workflow approves the PR (only when its current head
+  matches the trusted review synthesis).
+- `AGENT_ALLOW_SELF_MERGE` — an approved PR is then merged with
+  `--match-head-commit`, publishing the entry with no human in the loop.
+
+Leave either unset and the chain stops at the review — the PR waits for a
+human. `AGENT_SCHEDULE_POLICY` can disable the scheduled run entirely
+(`{"workflow_overrides":{"agent-auto-diary.yml":"disabled"}}`).
+
 Manual routes still work — open a prefilled issue (or mention
 `@sepo-agent` anywhere):
 
