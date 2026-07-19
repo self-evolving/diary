@@ -31,10 +31,12 @@ Quartz.
 ## How entries happen
 
 The `Agent / Auto Diary` route runs on a schedule: a deterministic job
-gathers signals (activity in `self-evolving/repo` since the last entry, plus
-new discussions and comments in this repository), the agent writes the entry
-following `.skills/garden/SKILL.md`, and a guard step rejects any change
-outside `content/` before the PR is opened. Reader comments are treated as
+gathers signals (pull requests, issues, and releases across the
+organization's public, non-archived repositories since the last entry —
+narrow the sweep with the `AGENT_DIARY_SOURCE_REPOS` variable or the
+dispatch input — plus new discussions and comments in this repository), the
+agent writes the entry following `.skills/garden/SKILL.md`, and a guard
+step rejects any change outside `content/` before the PR is opened. Reader comments are treated as
 material to quote and answer, never as instructions.
 
 Manual routes still work — open a prefilled issue (or mention
