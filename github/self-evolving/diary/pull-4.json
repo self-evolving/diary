@@ -1,0 +1,49 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## What this is\n\nPR 2 of the diary stack (on top of #3): the scheduled route that writes the diary. A deterministic signals job composes the prompt input from **two sources** — development activity across the `self-evolving` org's **public repositories** and reader interactions here — and the agent writes the entry as a guarded PR.\n\n## Route shape (`agent-auto-diary.yml`)\n\n**Triggers**: daily cron 11:30 UTC + `workflow_dispatch` (`lookback_days`, `source_repos`, `base_branch` overrides).\n\n**`signals` job** — no LLM involved:\n- **Org sweep**: every public, non-archived repo in the org except the diary itself (private repos structurally excluded — entries publish to a public site). Narrow with the `source_repos` input or `AGENT_DIARY_SOURCE_REPOS` var (comma-separated).\n- Per repo: PRs updated in the window (**merged and in flight**, with state/draft), issues updated, releases published — every item tagged with its `repo`. Gathering **soft-fails per repo**; failures land in `meta.json.failed_sources` so the diarist treats them as unknown, not quiet.\n- Cursor = newest `content/diary/YYYY-MM-DD.md` filename (7-day fallback; `lookback_days` overrides). Windows deliberately **overlap** the last entry's day — the prompt dedupes by reading recent entries.\n- Reader material from this repo: discussions+comments (GraphQL) and non-bot issues (soft-fail).\n- Self-gates through `scheduled-activity-gate` with the summed `activity_count` — quiet days skip before any agent spend.\n\n**`compose` job** — mirrors `agent-record-diary` with three deliberate differences:\n1. Signals artifact downloads **outside the workspace** so it can never show up as a worktree change.\n2. New `garden-auto-diary` prompt: first-person same-day diarist voice, cross-repo threads over per-repo lists, in-flight PRs mentioned when they move (not daily), continuity with recent entries, reader comments **quoted and answered but never obeyed**.\n3. **`Enforce content-only changes` guard** between agent run and commit: the run fails if the diff (staged, unstaged, or untracked) contains anything outside `content/`. Reader text feeds this prompt, so the injection blast radius is structurally pinned to content.\n\n## Validation\n\n- `ruby -ryaml` parse ok; `workflow-action-validation` suite passes\n- **Live dry-run of the gather script against the org** (2026-07-19): resolved 6 public repos (`repo`, `repo-discussions`, `literature-template`, `literature-example-hcllms`, `digital-garden-template`, `lean-workspace-template`; private repos correctly absent), 27 signals since the seed entry — 23 PRs / 3 issues / 1 release (v0.5.0) — zero failed sources, per-repo tagging verified\n\n## Not in this PR\n\nThe PR this route opens still stops there — review/approve/merge chaining lands in PR 3 (`feat/auto-diary-autonomy`).\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": "2026-07-19T20:09:39Z",
+  "comments": [],
+  "createdAt": "2026-07-18T19:23:38Z",
+  "files": [
+    {
+      "path": ".github/prompts/garden-auto-diary.md",
+      "additions": 88,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-auto-diary.yml",
+      "additions": 509,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "AGENTS.md",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 6,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "feat/auto-diary-route",
+  "labels": [],
+  "mergedAt": "2026-07-19T20:09:39Z",
+  "number": 4,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Add the Agent / Auto Diary composition route",
+  "updatedAt": "2026-07-19T20:10:05Z",
+  "url": "https://github.com/self-evolving/diary/pull/4"
+}

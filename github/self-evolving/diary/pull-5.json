@@ -1,0 +1,37 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## What this is\n\nPR 3 of the diary stack (on top of #4): the auto-diary route no longer stops at opening its PR — it hands off to the orchestrator, which runs the standard chain the framework already ships:\n\n```\ncompose PR → review → (SHIP + AGENT_ALLOW_SELF_APPROVE) → self-approve\n          → (approved + AGENT_ALLOW_SELF_MERGE) → self-merge → deploy\n```\n\nRework verdicts route into `fix-pr` → re-review per the existing heuristics; `HUMAN_DECISION` with self-approve off stops cleanly.\n\n## Changes\n\n- `agent-auto-diary.yml`: one new `Orchestrate automation handoff` step after PR creation (same `dispatch-agent-orchestrator.js` envelope as `agent-implement.yml`, `SOURCE_ACTION=implement`, heuristics mode, guarded on a PR actually existing).\n- README: documents the two opt-in variables and the `AGENT_SCHEDULE_POLICY` kill-switch.\n\n## Safety\n\nMerging this changes nothing by itself: **both `AGENT_ALLOW_SELF_APPROVE` and `AGENT_ALLOW_SELF_MERGE` default to false**, so the chain stops at the agent review until the variables are set. The content-only guard from #4 runs before the PR ever opens, and self-approval remains provenance-checked (trusted review synthesis + current-head match) inside the framework workflows.\n\nSuggested rollout: merge the stack → manually dispatch `Agent / Auto Diary` → watch the PR stop at review → flip the two vars → dispatch again and watch it land hands-free.\n\n## Validation\n\nWorkflow YAML parses (`ruby -ryaml`), `workflow-action-validation` suite passes, README prettier-clean.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": "2026-07-19T20:09:54Z",
+  "comments": [],
+  "createdAt": "2026-07-18T19:25:38Z",
+  "files": [
+    {
+      "path": ".github/workflows/agent-auto-diary.yml",
+      "additions": 28,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 14,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "feat/auto-diary-autonomy",
+  "labels": [],
+  "mergedAt": "2026-07-19T20:09:54Z",
+  "number": 5,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Close the autonomy loop on auto-diary PRs",
+  "updatedAt": "2026-07-19T20:10:05Z",
+  "url": "https://github.com/self-evolving/diary/pull/5"
+}

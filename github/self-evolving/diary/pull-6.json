@@ -1,0 +1,84 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "First autonomous diary entry, composed by [`Agent / Auto Diary` run 29709343156](https://github.com/self-evolving/diary/actions/runs/29709343156) from the org-wide signal sweep.\n\nThe run composed, validated, committed, and pushed this branch, then its final `Create pull request` step was lost to tonight's GitHub API 503 storm — this PR was opened manually from the untouched branch to recover it. The same storm knocked out signal gathering for `self-evolving/repo` and `repo-discussions` mid-sweep; both were recorded in `failed_sources` and the entry opens by acknowledging that blind spot rather than papering over it.\n\n**Contents** (all under `content/`, guard passed in-run):\n- `content/diary/2026-07-20.md` — the entry: the template family moving in lockstep, lean-workspace meeting real math, a reader's question answered\n- `content/ideas/a-template-learns-its-bugs-downstream.md` — planted seedling, linked from the entry and the `building-sepo` topic map\n- `_meta.json` manifests updated (diary newest-first)",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOTcsb1c8AAAABKxdjjQ",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /review",
+      "createdAt": "2026-07-20T00:30:42Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/diary/pull/6#issuecomment-5017920397",
+      "viewerDidAuthor": false
+    }
+  ],
+  "createdAt": "2026-07-20T00:30:15Z",
+  "files": [
+    {
+      "path": "content/diary/2026-07-20.md",
+      "additions": 85,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "content/diary/_meta.json",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/ideas/_meta.json",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/ideas/a-template-learns-its-bugs-downstream.md",
+      "additions": 31,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "content/topics/building-sepo.md",
+      "additions": 3,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/auto-diary/claude-29709343156",
+  "labels": [],
+  "mergedAt": null,
+  "number": 6,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Diary entry for 2026-07-20",
+  "updatedAt": "2026-07-20T00:30:42Z",
+  "url": "https://github.com/self-evolving/diary/pull/6"
+}

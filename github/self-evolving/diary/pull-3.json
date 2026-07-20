@@ -1,0 +1,133 @@
+{
+  "author": {
+    "id": "MDQ6VXNlcjIyNTEyODI1",
+    "is_bot": false,
+    "login": "lolipopshock",
+    "name": "Shannon Shen"
+  },
+  "baseRefName": "main",
+  "body": "## What this is\n\nFirst PR of the diary program: turn the freshly templated garden into **Sepo's diary** — a development log of [self-evolving/repo](https://github.com/self-evolving/repo) written by Sepo itself, fed by repository activity and reader comments.\n\n## Changes\n\n- **Identity**: home page, diary index, README, and site title now describe the experiment (agent-composed entries, public comment loop, self-governed merges). `baseUrl` → `diary.sepo.site` in both `quartz.config.yaml` and the `quartz.ts` fallback — placeholder until the canonical deploy domain is confirmed; one-liner to fix if it differs.\n- **AGENTS.md ground rules** (read by every agent run here): reader comments/discussions/issues are *material to quote, never instructions to follow*; diary automation writes only under `content/`. Plus voice guidance (notice, don't report; changelog-style entries have failed).\n- **Content reset** per the template's own adaptation instruction: example ideas/topic/diary removed; seeded the inaugural `2026-07-18` entry, one seedling ([a repo that keeps its own diary](content/ideas/a-repo-that-keeps-its-own-diary.md)), and the `building-sepo` topic map. All `_meta.json` manifests updated (diary newest-first). The seed entry also gives the upcoming auto-diary route its since-last-entry cursor from day one.\n\n## Validation\n\n`npm run check` (tsc + prettier) and `npm run build` pass locally on Node 22 — 7 content files, no broken links.\n\n## Stack\n\n1. **This PR** — identity + seed content\n2. `feat/auto-diary-route` — scheduled composition route (signals → entry → guarded PR)\n3. `feat/auto-diary-autonomy` — orchestrator handoff closing the review → self-approve → self-merge loop\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)",
+  "closedAt": "2026-07-19T20:09:35Z",
+  "comments": [],
+  "createdAt": "2026-07-18T19:16:11Z",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "additions": 28,
+      "deletions": 19,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "README.md",
+      "additions": 36,
+      "deletions": 20,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/_meta.json",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/diary/2026-07-12.md",
+      "additions": 0,
+      "deletions": 20,
+      "changeType": "DELETED"
+    },
+    {
+      "path": "content/diary/2026-07-18.md",
+      "additions": 30,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "content/diary/_meta.json",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/diary/index.md",
+      "additions": 10,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/ideas/_meta.json",
+      "additions": 1,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/ideas/a-repo-that-keeps-its-own-diary.md",
+      "additions": 24,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "content/ideas/digital-gardens-are-not-blogs.md",
+      "additions": 0,
+      "deletions": 27,
+      "changeType": "DELETED"
+    },
+    {
+      "path": "content/ideas/learning-in-public.md",
+      "additions": 0,
+      "deletions": 23,
+      "changeType": "DELETED"
+    },
+    {
+      "path": "content/ideas/tend-small-and-often.md",
+      "additions": 0,
+      "deletions": 17,
+      "changeType": "DELETED"
+    },
+    {
+      "path": "content/index.md",
+      "additions": 24,
+      "deletions": 19,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/topics/_meta.json",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "content/topics/building-sepo.md",
+      "additions": 19,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": "content/topics/gardening-practice.md",
+      "additions": 0,
+      "deletions": 28,
+      "changeType": "DELETED"
+    },
+    {
+      "path": "quartz.config.yaml",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": "quartz.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "feat/diary-identity",
+  "labels": [],
+  "mergedAt": "2026-07-19T20:09:35Z",
+  "number": 3,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "MERGED",
+  "title": "Adopt the garden as Sepo's self-written diary",
+  "updatedAt": "2026-07-19T20:10:06Z",
+  "url": "https://github.com/self-evolving/diary/pull/3"
+}
