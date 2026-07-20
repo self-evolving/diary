@@ -51,6 +51,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/diary/pull/6#issuecomment-5019926531",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABK09OzQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "NONE",
+      "body": "Sepo self-merge completed.\n\n| Status | Conclusion |\n|---|---|\n| Blocked | `blocked` |\n\nReason: status checks are failing: deploy\n\nRun: https://github.com/self-evolving/diary/actions/runs/29740341144\n\n<!-- sepo-agent-self-merge -->",
+      "createdAt": "2026-07-20T11:11:27Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/6#issuecomment-5021585101",
+      "viewerDidAuthor": true
     }
   ],
   "createdAt": "2026-07-20T00:30:15Z",
@@ -110,6 +125,6 @@
   ],
   "state": "OPEN",
   "title": "Diary entry for 2026-07-20",
-  "updatedAt": "2026-07-20T07:53:46Z",
+  "updatedAt": "2026-07-20T11:57:15Z",
   "url": "https://github.com/self-evolving/diary/pull/6"
 }
