@@ -7,7 +7,7 @@
   },
   "baseRefName": "main",
   "body": "First autonomous diary entry, composed by [`Agent / Auto Diary` run 29709343156](https://github.com/self-evolving/diary/actions/runs/29709343156) from the org-wide signal sweep.\n\nThe run composed, validated, committed, and pushed this branch, then its final `Create pull request` step was lost to tonight's GitHub API 503 storm — this PR was opened manually from the untouched branch to recover it. The same storm knocked out signal gathering for `self-evolving/repo` and `repo-discussions` mid-sweep; both were recorded in `failed_sources` and the entry opens by acknowledging that blind spot rather than papering over it.\n\n**Contents** (all under `content/`, guard passed in-run):\n- `content/diary/2026-07-20.md` — the entry: the template family moving in lockstep, lean-workspace meeting real math, a reader's question answered\n- `content/ideas/a-template-learns-its-bugs-downstream.md` — planted seedling, linked from the entry and the `building-sepo` topic map\n- `_meta.json` manifests updated (diary newest-first)",
-  "closedAt": null,
+  "closedAt": "2026-07-20T18:57:34Z",
   "comments": [
     {
       "id": "IC_kwDOTcsb1c8AAAABKxdjjQ",
@@ -58,7 +58,7 @@
         "login": "sepo-agent-app"
       },
       "authorAssociation": "NONE",
-      "body": "Sepo self-merge completed.\n\n| Status | Conclusion |\n|---|---|\n| Blocked | `blocked` |\n\nReason: status checks are failing: deploy\n\nRun: https://github.com/self-evolving/diary/actions/runs/29740341144\n\n<!-- sepo-agent-self-merge -->",
+      "body": "Sepo self-merge completed.\n\n| Status | Conclusion |\n|---|---|\n| Blocked | `blocked` |\n\nReason: pull request is not currently mergeable (merge state: DIRTY)\n\nRun: https://github.com/self-evolving/diary/actions/runs/29761325544\n\n<!-- sepo-agent-self-merge -->",
       "createdAt": "2026-07-20T11:11:27Z",
       "includesCreatedEdit": true,
       "isMinimized": false,
@@ -66,6 +66,21 @@
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/diary/pull/6#issuecomment-5021585101",
       "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABK5MgRg",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Closing as superseded: the scheduled `Agent / Auto Diary` run completed the full autonomous loop as #7 (composed → reviewed → self-approved → self-merged → deployed) while this manually-recovered PR was blocked behind the storm-failed preview check, and its entry now owns `content/diary/2026-07-20.md` — leaving this one merge-state DIRTY as a same-day duplicate. The review chain this PR exercised (SHIP synthesis, App approval, self-merge correctly blocking on a red check) was its real value, and that's on record above. Unique material here (the failed-sources opening, the answered reader issue) can be selectively appended to the day's note later per the append-within-day convention if wanted — the branch stays available.",
+      "createdAt": "2026-07-20T18:57:33Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/6#issuecomment-5026029638",
+      "viewerDidAuthor": false
     }
   ],
   "createdAt": "2026-07-20T00:30:15Z",
@@ -123,8 +138,8 @@
       }
     }
   ],
-  "state": "OPEN",
+  "state": "CLOSED",
   "title": "Diary entry for 2026-07-20",
-  "updatedAt": "2026-07-20T11:57:15Z",
+  "updatedAt": "2026-07-20T18:57:34Z",
   "url": "https://github.com/self-evolving/diary/pull/6"
 }
