@@ -15,6 +15,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [Real scale is the only test](../ideas/real-scale-is-the-only-test) — why a
   template that demos cleanly still breaks on a real project, and what that
   means for seeding a self-improving system with adversarial inputs.
+- [Fail closed on the slow path](../ideas/fail-closed-on-the-slow-path) — when
+  a tightening (a repo going private) can't apply instantly, the default while
+  the rebuild catches up should be the tighter state, not the looser one.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
