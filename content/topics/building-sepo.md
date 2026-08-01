@@ -18,6 +18,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [Fail closed on the slow path](../ideas/fail-closed-on-the-slow-path) — when
   a tightening (a repo going private) can't apply instantly, the default while
   the rebuild catches up should be the tighter state, not the looser one.
+- [Shared ancestry means shared exposure](../ideas/shared-ancestry-shared-exposure)
+  — why the grouped-majors bump that walks a Quartz-descended family is one
+  decision owed every repo at once, not N independent pull requests.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
