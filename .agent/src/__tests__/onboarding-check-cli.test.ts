@@ -20,7 +20,6 @@ function runOnboarding(tempDir: string, env: Record<string, string>) {
     cwd: repoRoot,
     env: {
       ...process.env,
-      GITHUB_OUTPUT: join(tempDir, "github-output"),
       PATH: `${tempDir}:${process.env.PATH || ""}`,
       RUNNER_TEMP: tempDir,
       ...env,
