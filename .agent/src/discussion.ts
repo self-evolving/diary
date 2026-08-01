@@ -33,11 +33,6 @@ export interface RepositoryDiscussionSummary {
   category: string;
 }
 
-export interface CreatedDiscussion {
-  id: string;
-  url: string;
-}
-
 /**
  * Resolves the reply-to target for a discussion comment.
  * Returns the parent comment node ID if the comment is a nested reply,
@@ -319,7 +314,7 @@ export function createDiscussion(
   categoryId: string,
   title: string,
   body: string,
-): CreatedDiscussion {
+): { url: string } {
   const query = `
     mutation($repoId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
       createDiscussion(input: {
@@ -328,21 +323,20 @@ export function createDiscussion(
         title: $title,
         body: $body
       }) {
-        discussion { id url }
+        discussion { url }
       }
     }
   `;
 
   const data = client.graphql<{
-    createDiscussion?: { discussion?: { id?: string; url?: string } | null } | null;
+    createDiscussion?: { discussion?: { url?: string } | null } | null;
   }>(query, { repoId, categoryId, title, body });
 
-  const id = data.createDiscussion?.discussion?.id;
   const url = data.createDiscussion?.discussion?.url;
-  if (!id || !url) {
-    throw new Error("GitHub did not return an ID and URL for the created discussion.");
+  if (!url) {
+    throw new Error("GitHub did not return a URL for the created discussion.");
   }
-  return { id, url };
+  return { url };
 }
 
 export function createRepositoryDiscussion(
@@ -352,7 +346,7 @@ export function createRepositoryDiscussion(
   title: string,
   body: string,
   client: GraphQLClient = createGhGraphqlClient(),
-): CreatedDiscussion {
+): { url: string } {
   const config = fetchRepositoryDiscussionConfig(client, owner, repo);
   const category = requireDiscussionCategory(config, categoryName);
   return createDiscussion(client, config.repositoryId, category.id, title, body);
