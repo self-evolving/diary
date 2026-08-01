@@ -1,0 +1,371 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Update Sepo from 0.4.0 to v0.5.0 (`5f7d2032080e9c0578d0e4cb3b98b2f695f33547`)\n\n> [!WARNING]\n> **Opened as a draft: not mergeable as-is.** This 0.5.0 update carries a\n> breaking runtime API change that breaks the diary repo's **target-owned**\n> `.agent/src/cli/publish-literature-update.ts` (`npm --prefix .agent run build`\n> fails). A companion target-side fix is required before merge — see\n> **Blocking follow-up** below. The agent-owned update itself is internally\n> consistent and compiles cleanly; only the target-owned CLI fails.\n\n- **Source:** `self-evolving/repo@v0.5.0` (SHA `5f7d2032080e9c0578d0e4cb3b98b2f695f33547`, latest release)\n- **Installed:** `0.4.0`\n- **Target branch:** `main`\n- **Update mode:** conservative merge — agent-owned scope only, no removals, `.skills/` and `AGENTS.md` untouched.\n\n## Changed path groups\n\n- `.agent/` — runtime sync (docs, `package.json`/`package-lock.json` deps + version, `model-defaults.json`, shared `src/` modules, tests, `tools/local-runner/`), plus new self-improvement modules/CLIs/tests, `README.md`, and `scripts/test/`. Synced without `--delete`, so all target-only files are preserved.\n- `.github/workflows/` — updated `agent-entrypoint.yml`, `agent-router.yml`, `agent-update.yml`; added `agent-cache-seed.yml`, `agent-self-improvement.yml`.\n- `.github/actions/` — updated `setup-agent-runtime/action.yml` (adds `cache_mode` runtime/CLI caching), `resolve-agent-provider/resolve-provider.js` (reasoning-effort handling).\n- `.github/prompts/` — updated `agent-answer.md`, `agent-install.md`, `agent-update.md`; added `agent-self-improvement.md`.\n\n## Audit summary\n\n| Item | Classification | Action |\n|---|---|---|\n| `.agent/**` shared runtime, docs, tools, tests | clean agent-owned | updated (sync, no delete) |\n| `.agent/src` self-improvement modules/CLIs/tests, `README.md`, `scripts/test/` | source-only agent-owned | added |\n| `.agent/src/deployments.ts`, `literature-update.ts`, `cli/publish-*.ts`, `cli/inactivate-preview-deployments.ts` + their tests | **target-owned** | **preserved** |\n| 3 workflows + 2 actions + 3 prompts (see above) | clean agent-owned | updated |\n| `agent-cache-seed.yml`, `agent-self-improvement.yml`, `agent-self-improvement.md` | source-only agent-owned | added |\n| `.github/workflows/test-scripts.yml` | **target-customized** (adds Quartz site validate/build/test) | **preserved** — see note |\n| `.github/assets/sepo-headline.png` | source-README branding, not runtime | **skipped** |\n| `.github/ISSUE_TEMPLATE/*`, `prompts/garden-*.md`, `pull_request_template.md`, `dependabot.yml`, `actions/deploy-sepo-site`, `actions/resolve-discussion-ids`, `actions/resolve-agent-provider/package.json`, garden workflows (`agent-auto-diary`, `agent-record-diary`, `agent-add-idea`, `agent-site-preview`, `agent-deploy-site-main`, `deploy`) | target-only | **preserved (untouched)** |\n\nNo legacy scaffolds found (`.flows/`, `.claude/`, `agent-local.yml`, `agent-runner.yml`, stale Claude/Codex actions — none present). No files removed (`remove obsolete = false`).\n\n## Customizations preserved\n\n- All target-owned `.agent/src` CLIs/modules (deployment, literature, preview) and their tests.\n- `test-scripts.yml` kept at the diary version (Quartz `check`/`build`/`test` lane). **Note:** 0.5.0's upstream `test-scripts.yml` adds a `paths:` filter, a `self-evolving/repo`/`AGENT_TEST_SCRIPTS_ENABLED` gate, `AGENT_TEST_RUNS_ON`, and lane-based test scripts. Consider folding those into the diary's Quartz-aware version in a follow-up.\n- All target-only `.github` templates, prompts, actions, and garden workflows.\n- Root `AGENTS.md` (target-owned garden instructions) — untouched. `.gitignore` already contains `.agent/dist/` + `.agent/node_modules/`.\n\n## Blocking follow-up (target-owned, out of update scope)\n\n0.5.0 simplified `createRepositoryDiscussion` / `createDiscussion` in the shared `.agent/src/discussion.ts` to return **only `{ url }`** (previously `CreatedDiscussion` with `id` + `url`; the GraphQL query no longer selects the node `id`). The diary's target-owned `.agent/src/cli/publish-literature-update.ts` still reads `discussion.id` to post follow-up item comments via `addDiscussionComment(discussion.id, …)`, so it no longer type-checks:\n\n```\nsrc/cli/publish-literature-update.ts(68,21): error TS2339: Property 'id' does not exist on type '{ url: string; }'.\nsrc/cli/publish-literature-update.ts(76,58): error TS2339: Property 'id' does not exist on type '{ url: string; }'.\n```\n\nThis is target application code (out of the agent-infra update scope), so it is intentionally **not modified here**. The diary maintainers need to adapt the literature-update flow to obtain the discussion node `id` explicitly (e.g., a dedicated GraphQL lookup by number/URL) or restructure comment posting. Once that lands, the build/test lane goes green.\n\n## Validation\n\n- `git diff --check` / `git diff --cached --check`: **PASS** (no whitespace errors)\n- `npm --prefix .agent ci`: **PASS** (new pinned deps: `@agentclientprotocol/codex-acp@1.1.2`, `acpx@^0.12.0`)\n- Workflow/action YAML parse (all updated + new files): **PASS**\n- `npm --prefix .agent run build` (`tsc`): **FAIL** — 2 errors, both in target-owned `publish-literature-update.ts` (above). All agent-owned code compiles cleanly.\n- `npm --prefix .agent test`: **FAIL** — gated by `build`; `test:runtime`, `check:workflow`, `check:docs`, `check:shell` did not run.\n\n## Memory / rubrics branches\n\n- `agent/memory` **exists** (`2f0ed3c…`) — not reinitialized. `agent/rubrics` absent (repo has no rubrics steering).\n- `refs/agent-state/*` and other `agent/*` branches left untouched.\n\n## Post-merge notes (document only)\n\n1. Land the target-side fix for `publish-literature-update.ts` (above) so the build/test lane passes.\n2. New workflows `agent-cache-seed.yml` and `agent-self-improvement.yml` are introduced by 0.5.0 — review any vars/secrets they expect before relying on them.\n3. `setup-agent-runtime` now supports `cache_mode` (default `full`); no action required, but review if you pin runners.\n4. Verify provider secrets still match updated workflows; optionally consider merging 0.5.0's `test-scripts.yml` gating into the Quartz-aware version.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-08-01T10:58:52Z",
+  "files": [
+    {
+      "path": ".agent/CHANGELOG.md",
+      "additions": 18,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/README.md",
+      "additions": 9,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/docs/architecture/overall-design.md",
+      "additions": 13,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/architecture/request-lifecycle.md",
+      "additions": 6,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/access-policy.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/customization/configuration-list.md",
+      "additions": 11,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/index.md",
+      "additions": 5,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/overview/quick-start.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/setup/self-hosted-github-action-runner.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/key-concepts.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/technical-details/session-continuity.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/agent-actions.md",
+      "additions": 4,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/internal-actions.md",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/docs/usage/supported-workflows.md",
+      "additions": 54,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/model-defaults.json",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package-lock.json",
+      "additions": 459,
+      "deletions": 264,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/package.json",
+      "additions": 3,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/scripts/test/cli-cache-keys.test.cjs",
+      "additions": 103,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/acpx-adapter.test.ts",
+      "additions": 33,
+      "deletions": 27,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/apply-self-improvement-decision-cli.test.ts",
+      "additions": 539,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/discussion.test.ts",
+      "additions": 3,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/envelope.test.ts",
+      "additions": 314,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/extract-context-cli.test.ts",
+      "additions": 40,
+      "deletions": 32,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/onboarding-check-cli.test.ts",
+      "additions": 0,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/resolve-agent-provider.test.ts",
+      "additions": 15,
+      "deletions": 4,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-improvement-requester.test.ts",
+      "additions": 71,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/self-improvement.test.ts",
+      "additions": 118,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/__tests__/triage.test.ts",
+      "additions": 8,
+      "deletions": 14,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/__tests__/workflow-action-validation.test.ts",
+      "additions": 271,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/acpx-adapter.ts",
+      "additions": 24,
+      "deletions": 35,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/apply-self-improvement-decision.ts",
+      "additions": 381,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/cli/extract-context.ts",
+      "additions": 22,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/cli/resolve-self-improvement-requester.ts",
+      "additions": 49,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/discussion.ts",
+      "additions": 7,
+      "deletions": 13,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/github.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/run.ts",
+      "additions": 1,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/src/self-improvement-requester.ts",
+      "additions": 68,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/self-improvement.ts",
+      "additions": 220,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".agent/src/triage.ts",
+      "additions": 15,
+      "deletions": 8,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/README.md",
+      "additions": 68,
+      "deletions": 16,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/bootstrap.sh",
+      "additions": 35,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/check-requirements.sh",
+      "additions": 31,
+      "deletions": 6,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/cleanup-runner.sh",
+      "additions": 5,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/com.local-runner.cleanup.plist.template",
+      "additions": 2,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/setup-runners.sh",
+      "additions": 38,
+      "deletions": 5,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/start-runners.sh",
+      "additions": 6,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".agent/tools/local-runner/stop-runners.sh",
+      "additions": 3,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/resolve-agent-provider/resolve-provider.js",
+      "additions": 11,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/actions/setup-agent-runtime/action.yml",
+      "additions": 175,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-answer.md",
+      "additions": 6,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-install.md",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/prompts/agent-self-improvement.md",
+      "additions": 146,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/prompts/agent-update.md",
+      "additions": 10,
+      "deletions": 7,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-cache-seed.yml",
+      "additions": 71,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-entrypoint.yml",
+      "additions": 46,
+      "deletions": 3,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-router.yml",
+      "additions": 2,
+      "deletions": 1,
+      "changeType": "MODIFIED"
+    },
+    {
+      "path": ".github/workflows/agent-self-improvement.yml",
+      "additions": 234,
+      "deletions": 0,
+      "changeType": "ADDED"
+    },
+    {
+      "path": ".github/workflows/agent-update.yml",
+      "additions": 2,
+      "deletions": 2,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/update-agent-infra-20260801",
+  "labels": [],
+  "mergedAt": null,
+  "number": 18,
+  "reviewDecision": "",
+  "reviews": [],
+  "state": "OPEN",
+  "title": "Update Sepo from 0.4.0 to v0.5.0/5f7d2032080e9c0578d0e4cb3b98b2f695f33547",
+  "updatedAt": "2026-08-01T10:58:52Z",
+  "url": "https://github.com/self-evolving/diary/pull/18"
+}
