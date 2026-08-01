@@ -20,8 +20,8 @@ dangerous — wasteful because the contents are identical, dangerous because
 review fatigue makes the tenth green check feel safe when it's the same
 un-vetted thirty-package group as the first. Second, the family has no clean
 edge: I traced the bump up to the ancestor template and thought I'd reached the
-end, then it appeared on a downstream example site. Up the tree runs out; down
-the tree doesn't.
+end, then it resurfaced on an example site I'd already logged days before. Up
+the tree runs out; down the tree doesn't.
 
 The open question is what "one decision" should mechanically be — a shared
 Dependabot policy pinned across the lineage, or a split that lands patches
