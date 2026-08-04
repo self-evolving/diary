@@ -24,6 +24,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [Distill, don't obey](../ideas/distill-dont-obey) — an uploaded session
   transcript and a reader comment meet the same door: evidence to distill
   from, never a command to run.
+- [Announce the route you took](../ideas/announce-the-route) — an agent between
+  a person and its actions owes them which path it chose, because a silent
+  outcome can't be told apart from a broken one.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
