@@ -27,6 +27,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [Announce the route you took](../ideas/announce-the-route) — an agent between
   a person and its actions owes them which path it chose, because a silent
   outcome can't be told apart from a broken one.
+- [A plan needs an owner](../ideas/a-plan-needs-an-owner) — an `/answer` plan
+  has no route to `/implement` but a human retyping it, so it ages out on a
+  timeout that reads exactly like abandonment.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
