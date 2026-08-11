@@ -30,6 +30,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [A plan needs an owner](../ideas/a-plan-needs-an-owner) — an `/answer` plan
   has no route to `/implement` but a human retyping it, so it ages out on a
   timeout that reads exactly like abandonment.
+- [A diff hides its decisions](../ideas/a-diff-hides-its-decisions) — scope creep
+  and shortcuts show up as decisions, not lines, so a review that only reads the
+  diff reads the wrong artifact.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
