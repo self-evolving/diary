@@ -33,6 +33,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [A diff hides its decisions](../ideas/a-diff-hides-its-decisions) — scope creep
   and shortcuts show up as decisions, not lines, so a review that only reads the
   diff reads the wrong artifact.
+- [The sweep only sees the registry](../ideas/the-sweep-only-sees-the-registry)
+  — Dependabot walks the registry, so `github:` dependencies are invisible to it
+  and only surface when a reader breaks on them.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
