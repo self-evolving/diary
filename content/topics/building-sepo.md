@@ -36,6 +36,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [The sweep only sees the registry](../ideas/the-sweep-only-sees-the-registry)
   — Dependabot walks the registry, so `github:` dependencies are invisible to it
   and only surface when a reader breaks on them.
+- [Break the loop at the emitter](../ideas/break-the-loop-at-the-emitter) — a
+  filter that skips a run after GitHub created it is cleanup, not prevention;
+  stop the feedback loop where the event is emitted, not where runs are caught.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
