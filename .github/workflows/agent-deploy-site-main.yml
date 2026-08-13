@@ -4,6 +4,18 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # A private->public visibility flip must refresh the canonical deployment.
+  # The preview-api re-derives repo identity from the OIDC token and re-reads
+  # GitHub's current visibility on every canonical deploy, rewriting both the
+  # preview-registry record (isPrivate) and the R2 META (visibility). Without a
+  # trigger those snapshots only update on the next push to main, so a
+  # newly-public repo stays behind the private-site gate until then.
+  #
+  # `public` is the only repository-visibility transition GitHub Actions exposes
+  # as an `on:` event; it fires on private->public only and takes no `types`.
+  # The reverse public->private (privatize) transition has NO native Actions
+  # trigger and is NOT covered here -- it is tracked separately in #31.
+  public:
 
 permissions:
   id-token: write
@@ -19,6 +31,11 @@ concurrency:
 
 jobs:
   deploy:
+    # The public (private->public) event fires against the default branch, so
+    # github.ref is refs/heads/main and this guard accepts it alongside push
+    # and workflow_dispatch while still deploying only main. The concurrency
+    # group above also keys on github.ref, so a visibility event shares the
+    # canonical-site group and cancel-in-progress behavior.
     if: vars.AGENT_ENABLED != 'false' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
