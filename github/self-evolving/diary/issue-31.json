@@ -1,0 +1,29 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "body": "Split out from #10.\n\n## Context\n\n#10 asked the canonical-deploy workflow to refresh the visibility snapshots (preview-registry `isPrivate`, R2 `META` `visibility`) whenever the repo flips public↔private. PR #30 wires up the **private→public** half using GitHub Actions' `public:` event.\n\nThe **public→private** half — which #10 flags as the most important, because a newly-private repo's previously-public deployment stays publicly served until the next deploy — has **no native GitHub Actions `on:` trigger**. `public:` is the only visibility event Actions exposes, and it fires on private→public only. So this path needs a different mechanism and a design decision.\n\n## Candidate mechanisms\n\n1. **Org-level repository webhook → `repository_dispatch`.** Configure an org/repo webhook on the `repository` event (actions `privatized`/`publicized`) that calls a small bridge to `POST /repos/self-evolving/diary/dispatches` with a custom `event_type`, then trigger the canonical deploy from `on: repository_dispatch`. Requires org-admin webhook setup + a hosted bridge or secret; not fully implementable from this repo alone.\n2. **`schedule:` reconciliation job.** A cron job that re-reads the repo's live GitHub visibility and redeploys only on drift from the last-deployed snapshot. Fully in-repo, but adds a periodic run and a drift check (needs read access to the current snapshot).\n3. **Fail-closed server-side visibility flip in the preview-api.** The snapshots are authored server-side; the most robust gate is for the preview-api to re-read visibility (or accept a webhook) and flip the served gate immediately, independent of a full rebuild. Lives outside this repo.\n\nOption 3 is the most fail-closed since it closes the exposure window without a minutes-long rebuild; options 1 and 2 still serve the old (public) deployment while the redeploy runs.\n\n## Acceptance criteria\n\n- A public→private transition re-gates the canonical site without a manual dispatch.\n- The mechanism is fail-closed, or the residual exposure window is explicitly bounded and documented.\n- The chosen approach documents any out-of-repo prerequisites (webhook config, preview-api change).",
+  "closedAt": null,
+  "comments": [],
+  "createdAt": "2026-08-13T03:35:27Z",
+  "labels": [
+    {
+      "id": "LA_kwDOTcsb1c8AAAACsUDYfQ",
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    },
+    {
+      "id": "LA_kwDOTcsb1c8AAAACsUD2xw",
+      "name": "github_actions",
+      "description": "Pull requests that update GitHub Actions code",
+      "color": "000000"
+    }
+  ],
+  "number": 31,
+  "state": "OPEN",
+  "title": "Refresh canonical deployment on public->private (privatize) visibility flips",
+  "updatedAt": "2026-08-13T03:35:27Z",
+  "url": "https://github.com/self-evolving/diary/issues/31"
+}

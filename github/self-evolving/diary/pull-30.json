@@ -1,0 +1,196 @@
+{
+  "author": {
+    "is_bot": true,
+    "login": "app/sepo-agent-app"
+  },
+  "baseRefName": "main",
+  "body": "## Summary\n\nCloses #10 (re-scoped to the **private→public / publicize** half — see below).\n\nRepository visibility snapshots (preview-registry `isPrivate`, R2 `META` `visibility`) are written server-side by the preview-api at canonical-deploy time. Previously they only refreshed on a push to `main` or a manual dispatch, so flipping a repo private→public on GitHub left the old snapshot in place — a newly-public repo stayed behind the private-site gate until the next deploy.\n\nThis adds GitHub Actions' `public` event to `agent-deploy-site-main.yml` so a private→public transition runs the canonical deployment automatically.\n\n```yaml\non:\n  push:\n    branches: [main]\n  workflow_dispatch:\n  public:\n```\n\n### Why `public:` and not `repository: [publicized, privatized]`\n\nThe original approach used `repository: types: [publicized, privatized]`, but `repository` is **not a supported GitHub Actions `on:` trigger** — it is a webhook/App event that Actions silently ignores, so it would never have started a deploy (YAML-valid ≠ recognized event). `public` is the only repository-visibility transition Actions exposes as an `on:` event; it fires on **private→public only** and takes no `types`.\n\n## Scope split\n\n- **private→public (publicize)** — handled here via `public:`. The deploy refreshes the registry/META from GitHub's current visibility, no manual dispatch needed.\n- **public→private (privatize)** — has **no native Actions trigger** and needs a different mechanism (org webhook → `repository_dispatch`, a `schedule:` reconciliation job, or a fail-closed server-side flip in the preview-api). Deferred and tracked in **#31**.\n\nIssue #10 was authored around the `repository:` premise; it has been re-scoped to publicize-now, with privatize tracked separately in #31.\n\n## How it satisfies the (re-scoped) acceptance criteria\n\n- **publicized → public site**: `public` triggers the canonical deploy, which refreshes the registry/META from GitHub's current visibility.\n- **Existing behavior intact**: `push` to `main` and `workflow_dispatch` are unchanged.\n- **Default branch + concurrency preserved**: the `public` event fires against the default-branch ref, so `github.ref` is `refs/heads/main`. The existing guard `if: vars.AGENT_ENABLED != 'false' && github.ref == 'refs/heads/main'` already accepts it, and the `canonical-site-${{ github.ref }}` concurrency group (with `cancel-in-progress`) is shared with pushes to `main`. No guard or concurrency change required; inline comments explain the intent.\n- **Documentation**: the trigger and the snapshot-refresh behavior are documented inline. These workflows have no in-repo unit harness, so documentation covers the criterion.\n\n## External dependency\n\nClosing the publicize path assumes the preview-api re-reads GitHub's live visibility on every canonical deploy. Confirmed from this checkout: [`deploy-sepo-site`](https://github.com/self-evolving/diary/blob/main/.github/actions/deploy-sepo-site/action.yml) posts only `{oidc_token, artifact_id, canonical:true}` to `/api/deploy/preview` — it sends **no** visibility field. So the refresh depends entirely on the server re-deriving identity from the OIDC token and re-reading visibility server-side. If the server caches visibility instead, a paired server-side change (outside this repo) is also needed.\n\n## Verification\n\n- Workflow parses as valid YAML; the `on` block exposes `push`, `workflow_dispatch`, and `public`.\n- `public` is a recognized Actions event (unlike the prior `repository` block).",
+  "closedAt": null,
+  "comments": [
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnJF4A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| implement | review | PR #30 | 3 / 12 | Dispatched |\n\nReason: agent planner selected review: implement succeeded and produced PR #30 for issue #10; hand off to review per policy.\n\n<!-- sepo-agent-handoff state:dispatched created:1786591105242 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL2RpYXJ5OjMxNjYzMzMwNDQxOmltcGxlbWVudDoxMDpyZXZpZXc6MzA6Mw -->",
+      "createdAt": "2026-08-13T03:18:25Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275534816",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnMf0g",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: f1a42bbf7a24dd353b9dcf86c0be9a4f1aee9655 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nInline comment posted and durable memory recorded. Here is the synthesis.\n\n---\n\n## Summary of PR/Issue\n\nThis PR closes #10, which aims to auto-refresh the canonical deployment when the repository flips public↔private so the preview-registry `isPrivate` and R2 `META` `visibility` snapshots don't go stale (most importantly, so a newly-private repo isn't left publicly served until the next push to `main`). The change adds a single trigger block — `repository: types: [publicized, privatized]` — to `.github/workflows/agent-deploy-site-main.yml`, plus inline comments explaining the guard, concurrency, and exposure-window reasoning. Notably, this exact trigger was proposed verbatim in issue #10 by the human maintainer. The problem is real and the framing is sound, but the chosen mechanism does not work: `repository` is not a supported GitHub Actions `on:` trigger, so the block is silently ignored and the workflow's behavior is unchanged.\n\n## Review\n\nThe intent, guard/concurrency analysis, and honesty about dependencies are good, but the change rests on an incorrect premise and, as written, does nothing for either acceptance criterion — it needs a rework, and the privatize half needs a design decision because no native trigger exists for it.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| `repository` is not a valid Actions `on:` trigger — silent no-op | BLOCKING | `repository` is a webhook/App event, not an Actions trigger; the block is ignored, so neither `publicized` nor `privatized` ever runs the deploy. Acceptance criteria #1 and #2 are unmet. |\n| Privatize has no native Actions trigger at all | BLOCKING | `public:` is the only visibility trigger and covers publicize (private→public) only. The public→private case — the one #10 calls most important — is unachievable with any `on:` trigger and needs a redesign. |\n| Inline comments document a trigger that never fires | WARNING | The added comments describe `repository` event behavior that won't occur, which will mislead future maintainers into thinking visibility refresh is wired up. |\n| \"Exposure window / not fail-closed\" is the primary path, not a follow-up | WARNING | For privatize, the lightweight \"flip snapshot first\" / server-side route is the *only* viable gate; it can't be deferred as an optimization since the full-rebuild path isn't even triggered. |\n| External server-side dependency correctly flagged | INFO | Criteria #1/#2 assume the preview-api re-reads live GitHub visibility per canonical deploy; unverifiable from this checkout and honestly called out. |\n| No workflow linting in CI | INFO | An `actionlint` step would have caught the unknown `on:` event cheaply. Optional. |\n\n## Progress\n\n- **Sound parts of the PR:** problem framing, the guard analysis (`github.ref == refs/heads/main`), the shared `canonical-site-${{ github.ref }}` concurrency reasoning, the exposure-window write-up, and the external-dependency disclosure are all genuinely good — and the guard/concurrency reasoning becomes *correct* once the trigger is switched to `public:`.\n- **Preserved behavior:** existing `push`-to-`main` and `workflow_dispatch` triggers are untouched.\n- **Provenance:** the non-functional `repository:` trigger was proposed in issue #10 itself by the human maintainer; the PR implemented it faithfully. This means the fix likely involves re-scoping the issue, not just patching the branch.\n- **Inline comment posted:** one new inline comment on `.github/workflows/agent-deploy-site-main.yml` line 19 flagging the invalid trigger and the `public:` correction ([discussion_r3772169257](https://github.com/self-evolving/diary/pull/30#discussion_r3772169257)). No prior inline comments or review threads existed (verified via REST and GraphQL).\n\n## Issue Details\n\n<details>\n<summary><code>repository</code> is not a valid Actions <code>on:</code> trigger — silent no-op</summary>\n\n**Cause:** `repository` (with actions like `publicized`/`privatized`) is a GitHub webhook / App event, but it is not in the allow-list of events that can trigger a GitHub Actions workflow. GitHub keeps running the workflow on the recognized `push`/`workflow_dispatch` and effectively ignores the unknown key, so the deploy never fires on a visibility flip. The PR's \"parses as valid YAML\" verification cannot catch this — YAML validity is not the same as a recognized Actions event schema.\n\n**Candidate solutions:** For the publicize case, use the top-level `public:` event (takes no `types`):\n```yaml\non:\n  push:\n    branches: [main]\n  workflow_dispatch:\n  public:\n```\n\n**Comments:** Ref: https://docs.github.com/actions/using-workflows/events-that-trigger-workflows. This defect defeats both acceptance criteria as written.\n</details>\n\n<details>\n<summary>Privatize has no native Actions trigger at all</summary>\n\n**Cause:** GitHub Actions exposes `public` (private→public) as its only visibility trigger; there is no `private`/`privatized` counterpart. So even after fixing the publicize half with `public:`, criterion #2 (privatize → gated site) remains unmet by any `on:` trigger.\n\n**Candidate solutions:** (repo has no existing precedent for any of these)\n- Org-level `repository` webhook bridged to a `repository_dispatch` event (a supported trigger) that runs the deploy — requires org-side setup outside this repo.\n- A scheduled reconciliation job (`schedule:`) that periodically re-reads visibility and redeploys on drift — bounds the exposure window without an event.\n- A server-side fix in the preview-api (which owns the snapshot) — the most natural, fail-closed home for the \"flip snapshot first\" behavior.\n\n**Comments:** This is a design change, not a patch, and it needs a maintainer choice. Because the `repository:` approach came from issue #10 itself, re-scoping the issue (e.g., \"publicize-only via `public:`, privatize tracked separately\") is a reasonable outcome.\n</details>\n\n<details>\n<summary>Inline comments document a trigger that never fires</summary>\n\n**Cause:** The added comment blocks explain how `repository (publicized/privatized)` events fire against the default branch and share the concurrency group — accurate reasoning for a trigger that doesn't exist here, so it actively misleads.\n\n**Candidate solutions:** If the fix moves to `public:`, rewrite the comments to describe the `public` event (the guard/concurrency reasoning then holds) and remove any claim that privatization is covered.\n</details>\n\n<details>\n<summary>\"Exposure window / not fail-closed\" is the primary path, not a follow-up</summary>\n\n**Cause:** The PR frames the multi-minute rebuild exposure window as a tracked follow-up. But since privatize has no trigger, the full-rebuild path it's meant to improve never runs for privatization — so the lightweight \"flip snapshot first\" / server-side route is the *only* way to actually gate a just-privatized site.\n\n**Candidate solutions:** Surface the lightweight visibility-refresh / server-side flip as core scope (a hard dependency for closing #10's privatize criterion), not an optimization footnote.\n</details>\n\n<details>\n<summary>No workflow linting in CI (optional)</summary>\n\n**Cause:** Nothing in CI validates workflow event names, which is why an invalid `on:` event passed review.\n\n**Candidate solutions:** Add a small `actionlint` step (e.g., in `test-scripts.yml`) to catch unknown/typo'd triggers cheaply. Optional and out of scope for this PR, but this PR is a good argument for it.\n</details>\n\n## Recommended Next Step\n\n`HUMAN_DECISION` — the publicize half has a clean automatable fix (swap to `public:`), but the \"more important\" privatize half has no native Actions trigger and requires a maintainer to choose a mechanism and/or re-scope issue #10 (which the maintainer authored with the incorrect premise) before further automation; shipping only the partial fix would silently drop a stated acceptance criterion.\n\n## Final Verdict\n\n`NEEDS_REWORK`\n\n## Action Items\n\n- [ ] Replace the non-functional `repository: types: [publicized, privatized]` trigger with the top-level `public:` event so the publicize case actually deploys.\n- [ ] Decide and implement (or explicitly defer) the privatize mechanism — org webhook → `repository_dispatch`, scheduled reconciliation, or a server-side visibility flip — since public→private has no native Actions trigger.\n- [ ] Rewrite the inline workflow comments to describe the `public:` event and stop claiming privatization is covered.\n- [ ] Update the PR body (and consider re-scoping issue #10) so it no longer presents privatization as handled by this change.\n- [ ] Confirm the external prerequisite: the preview-api re-reads live GitHub visibility on every canonical deploy (otherwise even the publicize path won't close #10).\n\n---\n`claude` | `claude-opus-4-8` | `max` | `GitHub Actions 1000019735`",
+      "createdAt": "2026-08-13T03:27:37Z",
+      "includesCreatedEdit": false,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275590610",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnM9tA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | agent-self-approve | PR #30 | 4 / 12 | Dispatched |\n\nReason: agent planner selected agent-self-approve: Review concluded NEEDS_REWORK with recommended next step HUMAN_DECISION. Self-approval is enabled, so per policy the review handoff routes to agent-self-approve for the human-decision determination (fix-pr is disallowed on HUMAN_DECISION). Round 3/12, within budget.\n\n<!-- sepo-agent-handoff state:dispatched created:1786591736379 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL2RpYXJ5OjMxNjYzNTIyNjMzOnJldmlldzozMDphZ2VudF9zZWxmX2FwcHJvdmU6MzA6NA -->",
+      "createdAt": "2026-08-13T03:28:56Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275598260",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnNpNQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo self-approval completed.\n\n| Status | Conclusion |\n|---|---|\n| Failed | `failed` |\n\nReason: self-approval agent response was missing a valid JSON decision\n\nRun: https://github.com/self-evolving/diary/actions/runs/31664988060\n\nHead SHA: `a10e1ba2a16b26e212ed2bae0132b39c493e04b8`\n<!-- sepo-agent-self-approval-head: a10e1ba2a16b26e212ed2bae0132b39c493e04b8 -->\n\n<!-- sepo-agent-self-approval -->\n\n---\n`claude` | `claude-opus-4-8` | `xhigh` | `GitHub Actions 1000019750`",
+      "createdAt": "2026-08-13T03:30:50Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275609397",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnOIMA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| agent-self-approve | fix-pr | PR #30 | 5 / 12 | Dispatched |\n\nReason: agent planner selected fix-pr: agent-self-approve returned REQUEST_CHANGES on open PR #30 (round 4/12, within budget). Policy requires handing off to fix-pr and preserving the source handoff context as the fix-pr task.\n\nTask for fix-pr:\n1) Replace `repository: types: [publicized, privatized]` with the top-level `public:` event (no types) so the publicize (private->public) case actually triggers the canonical deploy; the existing `github.ref == 'refs/heads/main'` guard and `canonical-site-${{ github.ref }}` concurrency group already accept default-branch `public` events, so no guard/concurrency change is needed. 2) The privatize (public->private) case — which #10 flags as most important — has NO native Actions trigger; choose and implement, or explicitly defer with a tracking issue, one mechanism: (a) org-level repository webhook bridged to a supported `repository_dispatch` trigger, (b) a `schedule:` reconciliation job that re-reads visibility and redeploys on drift, or (c) a fail-closed server-side visibility flip in the preview-api (its natural home). 3) Rewrite the inline workflow comments to describe the `public:` event and stop claiming privatization is covered. 4) Update the PR body and re-scope issue #10 (which was authored with the incorrect `repository:` premise) to e.g. 'publicize via public: now, privatize tracked separately'. 5) Confirm the external prerequisite that the preview-api re-reads live GitHub visibility on every canonical deploy, otherwise even the publicize path won't close #10. Optional: add an actionlint CI step to catch unknown on: events cheaply.\n\n<!-- sepo-agent-handoff state:dispatched created:1786591932557 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL2RpYXJ5OjMxNjY0MDUzNTc4OmFnZW50X3NlbGZfYXBwcm92ZTozMDpmaXhfcHI6MzA6NQ -->",
+      "createdAt": "2026-08-13T03:32:12Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275617328",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnQK3Q",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "**Sepo pushed fixes for this PR.** Branch: `agent/implement-issue-10/claude-31663330441`. Requested by @sepo-agent.\n\n<!-- sepo-agent-fix-pr-status -->\n\nFixed the core defect in PR #30: `repository: types: [publicized, privatized]` is not a supported GitHub Actions `on:` trigger (it's a webhook/App event Actions ignores), so it was a silent no-op.\n\n- **Workflow** (`agent-deploy-site-main.yml`): replaced the invalid `repository:` block with the real `public:` event (private→public, no `types`) so the publicize path actually triggers the canonical deploy. Guard (`github.ref == 'refs/heads/main'`) and `canonical-site-${{ github.ref }}` concurrency already accept default-branch `public` events, so neither changed. Rewrote both inline comment blocks to describe `public:` and stop claiming privatization is covered.\n- **Deferred privatize path**: public→private has no native Actions trigger, so it's split out into tracking issue **#31** (candidate mechanisms: org webhook → `repository_dispatch`, a `schedule:` reconciliation job, or a fail-closed server-side flip in the preview-api).\n- **Re-scoped #10**: PR body updated and a comment posted on #10 narrowing it to publicize-now, with privatize tracked in #31. PR still `Closes #10` for the publicize half.\n- **External prerequisite confirmed**: [`deploy-sepo-site`](https://github.com/self-evolving/diary/blob/main/.github/actions/deploy-sepo-site/action.yml) posts only `{oidc_token, artifact_id, canonical:true}` — no visibility field — so the snapshot refresh depends entirely on the server re-reading live GitHub visibility per canonical deploy. Documented as an out-of-repo dependency.\n\n<details><summary>Verification</summary>\n\n- YAML parses; `on` block exposes `push`, `workflow_dispatch`, `public`.\n- `actionlint` not installed in this runner; validated the event manually + via YAML parse. (An optional `actionlint` CI step would have caught the original bug cheaply — left out to keep the change minimal.)\n\n</details>\n\n---\n`claude` | `claude-opus-4-8` | `xhigh` | `GitHub Actions 1000019739`",
+      "createdAt": "2026-08-13T03:36:57Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275650781",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnQ0mA",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| fix-pr | review | PR #30 | 6 / 12 | Dispatched |\n\nReason: agent planner selected review: fix-pr succeeded at round 5/12: replaced the non-working `repository: types: [publicized, privatized]` trigger (flagged by the prior review/self-approve as a silent no-op) with the native `public:` Actions event. Head advanced to a10e1ba, invalidating the earlier synthesis (head f1a42bb). Re-review to verify the fix addresses issue #10's publicize path.\n\n<!-- sepo-agent-handoff state:dispatched created:1786592299989 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL2RpYXJ5OjMxNjY0MjE5NTcxOmZpeF9wcjozMDpyZXZpZXc6MzA6Ng -->",
+      "createdAt": "2026-08-13T03:38:20Z",
+      "includesCreatedEdit": true,
+      "isMinimized": true,
+      "minimizedReason": "outdated",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275661464",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnThHQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "## AI Review Synthesis\n\n<!-- sepo-agent-review-synthesis -->\n<!-- sepo-agent-review-synthesis-head: a10e1ba2a16b26e212ed2bae0132b39c493e04b8 -->\n\n> Dual-agent review by **Claude** and **Codex**.\n> Requested by @lolipopshock.\n\nThread resolved. All findings are grounded against the current head `a10e1ba` and the live issues. Here is the synthesis.\n\n---\n\n## Summary of PR/Issue\n\nThis is a **re-review** of PR #30, which closes the publicize half of #10: keeping the canonical deployment's visibility snapshots (preview-registry `isPrivate`, R2 `META` `visibility`) fresh so a repo flipped private→public on GitHub doesn't stay behind the private-site gate until the next push to `main`. The prior review found a BLOCKING defect — the original `repository: types: [publicized, privatized]` block is not a recognized Actions `on:` trigger, so it was a silent no-op — and a fix-pr pass replaced it with the native `public:` event (+17/−0, one workflow file). The public→private (privatize) half has no native Actions trigger and is cleanly deferred to #31. **The prior BLOCKING is resolved**, the guard/concurrency reuse is verified correct, and the code is ship-quality; the only remaining items are two operational/tracking WARNINGs to settle at or before merge.\n\n## Review\n\nThe single reviewer verdict is MINOR_ISSUES, and I concur: there is nothing to rework in the branch code — `public:` is the correct and only native trigger for the publicize half, and privatize is honestly split out to #31 rather than faked. The two WARNINGs are an out-of-repo server-side dependency and an issue-metadata reconciliation before the `Closes #10` auto-close; both need maintainer verification/judgment, not a code change.\n\n| Issue | Severity | Description |\n| -- | -- | -- |\n| Publicize outcome depends on unverified server-side visibility re-read | WARNING | The deploy payload carries no visibility field, so #10's publicize criterion only holds if the preview-api re-reads live GitHub visibility per canonical deploy. Out-of-repo; honestly disclosed; not a code defect. |\n| `Closes #10` will auto-close an issue whose body still lists the deferred privatize criterion | WARNING | #10's body still contains the `privatized` acceptance criterion (deferred to #31). The re-scope was a comment, not a body edit, so an autonomous close could read as if privatize shipped. Audit clarity, not function. |\n| No workflow linting in CI (optional) | INFO | Nothing validates `on:` event names — why the original invalid trigger passed the \"valid YAML\" check. A small `actionlint` step would catch this cheaply. Out of scope. |\n| `public:` trigger only exercisable post-merge | INFO | Non-push events run from the default-branch copy of the workflow, so first real validation is post-merge. Expected — just be aware. |\n\n## Progress\n\n- **Prior BLOCKING resolved:** the non-functional `repository: types: [...]` block was replaced with the native `public:` event; the intermediate invalid version is not in the final diff.\n- **Guard/concurrency verified correct:** `public` events run from `refs/heads/main`, so the existing `github.ref == 'refs/heads/main'` guard accepts them unchanged, and they correctly share the `canonical-site-${{ github.ref }}` group under `cancel-in-progress`. Inline comments match this reasoning.\n- **Privatize cleanly deferred:** #31 is open with full acceptance criteria and three candidate mechanisms (org webhook → `repository_dispatch`, `schedule:` reconciliation, or a fail-closed server-side flip).\n- **External prerequisite documented:** confirmed [`deploy-sepo-site/action.yml`](https://github.com/self-evolving/diary/blob/a10e1ba2a16b26e212ed2bae0132b39c493e04b8/.github/actions/deploy-sepo-site/action.yml) builds its payload as `{oidc_token, artifact_id, canonical:true}` — no visibility field — matching the PR's disclosure.\n- **Inline cleanup:** replied to and **resolved** the superseded same-agent thread (`PRRT_kwDOTcsb1c6YzVU5`, comment `3772169257`) that flagged the invalid `repository:` trigger and recommended exactly the `public:` fix now implemented. No new inline comments were warranted (both WARNINGs target unchanged files / issue metadata, not changed lines).\n\n## Issue Details\n\n<details>\n<summary>Publicize outcome depends on unverified server-side visibility re-read</summary>\n\n**Cause:** The canonical deploy call sends no visibility field ([`action.yml` lines 69–70](https://github.com/self-evolving/diary/blob/a10e1ba2a16b26e212ed2bae0132b39c493e04b8/.github/actions/deploy-sepo-site/action.yml)), so the snapshot refresh depends entirely on the preview-api re-deriving identity from the OIDC token and re-reading GitHub's live visibility on every canonical deploy. If the server caches visibility instead, the `public:` trigger fires a deploy that changes nothing and #10's publicize criterion stays unmet despite merge.\n\n**Candidate solutions:** Confirm the server-side re-read behavior before treating #10 as truly closed. The trigger is a necessary precondition regardless, so this does not block the branch — it gates the *claim* that #10 is satisfied.\n\n**Comments:** Genuinely out-of-repo and honestly disclosed in the PR body; not a code defect.\n</details>\n\n<details>\n<summary><code>Closes #10</code> will auto-close an issue whose body still lists the deferred privatize criterion</summary>\n\n**Cause:** #10's body still lists \"A `privatized` event automatically runs the canonical deployment and gates the refreshed site\" — the half the author flagged as *most important*, now deferred to #31. The re-scope was communicated via a comment, not a body/title edit, so on merge `Closes #10` closes an issue whose text still implies privatize shipped. Because Sepo can merge autonomously, a later audit of closed-#10 could be misread.\n\n**Candidate solutions:** Before the auto-close, edit #10's body/title to the narrowed publicize-only scope, or otherwise make the #31 hand-off unambiguous in the closing trail. Tracking isn't lost (it's in #31) — this is about audit clarity.\n\n**Comments:** Metadata reconciliation, not a branch change.\n</details>\n\n<details>\n<summary>No workflow linting in CI (optional)</summary>\n\n**Cause:** CI validates nothing about `on:` event names, which is exactly why the original invalid `repository:` trigger passed the \"parses as valid YAML\" check.\n\n**Candidate solutions:** Add a small `actionlint` step (e.g. in `test-scripts.yml`) to catch unknown/typo'd triggers cheaply. Optional and out of scope for this PR, but this PR is a good argument for it.\n</details>\n\n## Recommended Next Step\n\n`HUMAN_DECISION` — the branch code is ship-quality with no rework needed, but the two remaining WARNINGs are an out-of-repo server-side verification (WARNING-1) and an issue-metadata reconciliation before the autonomous `Closes #10` (WARNING-2), both of which need maintainer confirmation/judgment rather than an automated branch change, so there is no safe `FIX_PR` work to dispatch.\n\n## Final Verdict\n\n`MINOR_ISSUES`\n\n## Action Items\n\n- [ ] Confirm the preview-api re-reads live GitHub visibility on every canonical deploy (payload carries no visibility field); otherwise the `public:` trigger fires a no-op deploy and #10's publicize criterion stays unmet. *(Pre-merge verification — human/out-of-repo.)*\n- [ ] Reconcile #10 before the `Closes #10` auto-close: edit #10's body/title to the narrowed publicize-only scope (or make the #31 hand-off unambiguous in the closing trail), since #10's body still lists the deferred `privatized` criterion. *(Metadata — human.)*\n- [ ] Optional: add an `actionlint` CI step to catch unknown `on:` events cheaply (would have caught the original invalid trigger).\n\n---\n`claude` | `claude-opus-4-8` | `max` | `GitHub Actions 1000019748`",
+      "createdAt": "2026-08-13T03:46:07Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275705629",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnUA8A",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| review | agent-self-approve | PR #30 | 7 / 12 | Dispatched |\n\nReason: agent planner selected agent-self-approve: Review verdict MINOR_ISSUES with Recommended Next Step HUMAN_DECISION and self-approval enabled. The prior BLOCKING (invalid `repository:` trigger) is resolved by the `public:` fix; branch code is ship-quality with no safe FIX_PR work remaining. The two open WARNINGs are human-judgment items (out-of-repo server visibility re-read; #10 body/title reconciliation before the autonomous `Closes #10`), which the self-approve gate should weigh.\n\n<!-- sepo-agent-handoff state:dispatched created:1786592852241 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL2RpYXJ5OjMxNjY0NTMwMjg0OnJldmlldzozMDphZ2VudF9zZWxmX2FwcHJvdmU6MzA6Nw -->",
+      "createdAt": "2026-08-13T03:47:32Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/pull/30#issuecomment-5275713776",
+      "viewerDidAuthor": true
+    }
+  ],
+  "createdAt": "2026-08-13T03:17:10Z",
+  "files": [
+    {
+      "path": ".github/workflows/agent-deploy-site-main.yml",
+      "additions": 17,
+      "deletions": 0,
+      "changeType": "MODIFIED"
+    }
+  ],
+  "headRefName": "agent/implement-issue-10/claude-31663330441",
+  "labels": [],
+  "mergedAt": null,
+  "number": 30,
+  "reviewDecision": "",
+  "reviews": [
+    {
+      "id": "PRR_kwDOTcsb1c8AAAABJXDIOQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-08-13T03:26:16Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "f1a42bbf7a24dd353b9dcf86c0be9a4f1aee9655"
+      }
+    },
+    {
+      "id": "PRR_kwDOTcsb1c8AAAABJXH5rQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "",
+      "submittedAt": "2026-08-13T03:44:46Z",
+      "includesCreatedEdit": false,
+      "reactionGroups": [],
+      "state": "COMMENTED",
+      "commit": {
+        "oid": "a10e1ba2a16b26e212ed2bae0132b39c493e04b8"
+      }
+    }
+  ],
+  "state": "OPEN",
+  "title": "Refresh canonical deploy on repository visibility changes",
+  "updatedAt": "2026-08-13T03:49:47Z",
+  "url": "https://github.com/self-evolving/diary/pull/30"
+}

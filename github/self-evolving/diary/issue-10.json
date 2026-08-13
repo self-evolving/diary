@@ -35,7 +35,7 @@
       "author": {
         "login": "sepo-agent-app"
       },
-      "authorAssociation": "NONE",
+      "authorAssociation": "CONTRIBUTOR",
       "body": "I have enough context. This is a plan-only `/answer`, so here's my assessment and proposed execution plan.\n\n---\n\nThanks @lolipopshock — the proposal is sound and mostly a workflow-trigger change. Here's what I found and how I'd execute it.\n\n## What's in scope here vs. server-side\n\nThe visibility snapshots you're describing (`isPrivate` in the preview registry, `visibility` in R2 `META`) are written by the **preview-api server**, not by anything in this repo. This repo's only lever is [`.github/workflows/agent-deploy-site-main.yml`](https://github.com/self-evolving/diary/blob/main/.github/workflows/agent-deploy-site-main.yml), which posts `canonical: true` to `/api/deploy/preview` via [`.github/actions/deploy-sepo-site/action.yml`](https://github.com/self-evolving/diary/blob/main/.github/actions/deploy-sepo-site/action.yml). The server derives repo identity from the OIDC token and refreshes the snapshots at deploy time.\n\nSo acceptance criteria #1/#2 hinge on an assumption I can't verify from this checkout: **that the preview-api re-reads GitHub's current visibility on every canonical deploy** (rather than caching it). If it does, adding the trigger is enough. If it doesn't, the fix also needs a server-side change outside this repo. Worth confirming before we call this fully closed.\n\n## Guard and concurrency — mostly already correct\n\n- For `repository` events, `github.ref` resolves to the **default branch** (`refs/heads/main`), so the existing guard `if: vars.AGENT_ENABLED != 'false' && github.ref == 'refs/heads/main'` already accepts them. No guard change strictly required — but I'd add an explicit `github.event_name` note/comment so the intent is legible.\n- The `concurrency` group `canonical-site-${{ github.ref }}` also keys on `github.ref`, so a `repository` event shares the same group as a `push` to main and preserves `cancel-in-progress`. No change needed.\n- The `repository` event fires only against the default-branch copy of the workflow, which is where this file lives. Good.\n\n## Proposed execution plan\n\n1. Add `repository: types: [publicized, privatized]` to the `on:` block in `agent-deploy-site-main.yml`, keeping `push`/`workflow_dispatch`.\n2. Add a short comment near the guard documenting that `repository` events run on the default-branch ref and are intentionally accepted.\n3. Confirm the preview-api refreshes visibility from GitHub at canonical-deploy time (I'll flag this as an external dependency in the PR body rather than fixing it here).\n4. **Document the exposure window**: a full rebuild (`npm ci` → `npm run build` → upload → deploy) takes minutes, during which a just-privatized site stays publicly served. Since this rebuild path is **not fail-closed**, I'd capture a follow-up issue for a lightweight visibility-refresh route (flip the snapshot immediately, then rebuild) rather than block on it here.\n5. Coverage: since these workflows aren't unit-tested in-repo, I'd satisfy the \"tests or documentation\" criterion by documenting the trigger and refresh behavior inline in the workflow plus the PR description. Let me know if you'd prefer an actual test harness instead.\n\n## Questions before I dispatch `/implement`\n\n1. Can you confirm the preview-api re-reads live visibility on canonical deploy? If not, this needs a paired server-side change.\n2. Is documenting the exposure window + a follow-up issue acceptable for this PR, or do you want the fail-closed fast-path in the same change?\n\nReply `@sepo-agent /implement` (with any answers) and I'll open the PR.\n\n---\n\n<details>\n<summary>Sepo activity</summary>\n\n**Sepo finished — answer · 1m08s · 10 steps**\n\nLast message\n> I have enough context. This is a plan-only `/answer`, so here's my assessment and proposed execution plan. --- Thanks @lolipopshock — the proposal is sound and mostly a workflow-trigger change. Here's what I found and how I'd execute it. #…\n\nActivity\n\n- 💬 Message \"Now let me look at the deploy-sepo-site action and how visibility/META is recorded.\"\n- 💻 Ran `Terminal` (completed)\n- 💬 Message \"The visibility snapshot logic appears server-side. Let me check what's in this repo touching visibility and the guard patterns used across workflows.\"\n- 💻 Ran `Terminal` (completed)\n- 💻 Ran `Terminal` (completed)\n- 💬 Message \"I have enough context. This is a plan-only `/answer`, so here's my assessment and proposed execution plan. --- Thanks @lolipopshock — the proposal is sound and mostly a workflow-trigger change. Here's what I found and how I'd execute it. #…\"\n</details>\n\n<!-- sepo-progress:run-30045629367 -->\n\n---\n`claude` | `claude-opus-4-8` | `high` | `GitHub Actions 1000015364`",
       "createdAt": "2026-07-23T21:19:13Z",
       "includesCreatedEdit": true,
@@ -43,6 +43,79 @@
       "minimizedReason": "",
       "reactionGroups": [],
       "url": "https://github.com/self-evolving/diary/issues/10#issuecomment-5063558731",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnGYog",
+      "author": {
+        "login": "lolipopshock"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "@sepo-agent /orchestrate ",
+      "createdAt": "2026-08-13T03:12:23Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [
+        {
+          "content": "THUMBS_UP",
+          "users": {
+            "totalCount": 1
+          }
+        },
+        {
+          "content": "EYES",
+          "users": {
+            "totalCount": 1
+          }
+        }
+      ],
+      "url": "https://github.com/self-evolving/diary/issues/10#issuecomment-5275490466",
+      "viewerDidAuthor": false
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnHimQ",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Sepo is dispatching follow-up automation.\n\n| Source | Next | Target | Round | Status |\n| --- | --- | --- | --- | --- |\n| orchestrate | implement | Issue #10 | 2 / 12 | Dispatched |\n\nReason: agent planner selected implement: Issue #10 is a small, self-contained workflow change already scoped by a prior /answer that the requester thumbs-upped before requesting /orchestrate. Implement directly rather than delegating a child issue.\n\n<!-- sepo-agent-handoff state:dispatched created:1786590889447 base64:aGFuZG9mZjpzZWxmLWV2b2x2aW5nL2RpYXJ5OjMxNjYzMjAxNTc4Om9yY2hlc3RyYXRlOjEwOmltcGxlbWVudDoxMDoy -->",
+      "createdAt": "2026-08-13T03:14:49Z",
+      "includesCreatedEdit": true,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/issues/10#issuecomment-5275509401",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnIrpw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "**Sepo implementation finished**\n\n- Branch: `agent/implement-issue-10/claude-31663330441`\n- Pull request: https://github.com/self-evolving/diary/pull/30\n\nAdded a `repository: types: [publicized, privatized]` trigger to `.github/workflows/agent-deploy-site-main.yml` so a GitHub visibility flip automatically runs the canonical deployment, which re-derives repo identity from the OIDC token and refreshes the preview-registry `isPrivate` record and R2 `META` visibility. `repository` events fire against the default branch, so the existing guard (`github.ref == 'refs/heads/main'`) and the ref-keyed concurrency group already accept them unchanged; I added inline comments documenting that, plus the fail-open exposure window during a privatized rebuild and the lightweight-refresh follow-up. Existing push and workflow_dispatch behavior is untouched. Verified the workflow still parses as valid YAML and that the `on` block now exposes push, workflow_dispatch, and the two repository visibility actions.\n\n---\n`claude` | `claude-opus-4-8` | `xhigh` | `GitHub Actions 1000019727`",
+      "createdAt": "2026-08-13T03:17:12Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/issues/10#issuecomment-5275528103",
+      "viewerDidAuthor": true
+    },
+    {
+      "id": "IC_kwDOTcsb1c8AAAABOnP7Aw",
+      "author": {
+        "login": "sepo-agent-app"
+      },
+      "authorAssociation": "CONTRIBUTOR",
+      "body": "Re-scoping note (from PR #30 review).\n\nThe proposed `repository: types: [publicized, privatized]` block turns out to be a no-op: `repository` is not a supported GitHub Actions `on:` trigger (it is a webhook/App event Actions ignores). The only visibility transition Actions exposes as an `on:` event is `public:`, which fires on **private→public only** and takes no `types`.\n\nSo this issue is now scoped to the **private→public (publicize)** half, which PR #30 implements via `public:`. The **public→private (privatize)** half — the one flagged here as most important — has no native Actions trigger and needs a separate mechanism (org webhook → `repository_dispatch`, a `schedule:` reconciliation job, or a fail-closed server-side flip in the preview-api). That work is tracked in #31.\n\nPR #30 continues to `Closes #10` for the publicize path; privatize is carried in #31.",
+      "createdAt": "2026-08-13T03:36:28Z",
+      "includesCreatedEdit": false,
+      "isMinimized": false,
+      "minimizedReason": "",
+      "reactionGroups": [],
+      "url": "https://github.com/self-evolving/diary/issues/10#issuecomment-5275646723",
       "viewerDidAuthor": true
     }
   ],
@@ -58,6 +131,6 @@
   "number": 10,
   "state": "OPEN",
   "title": "Automatically refresh canonical deployments when repository visibility changes",
-  "updatedAt": "2026-07-23T21:20:26Z",
+  "updatedAt": "2026-08-13T03:36:28Z",
   "url": "https://github.com/self-evolving/diary/issues/10"
 }
