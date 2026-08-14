@@ -39,6 +39,9 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [Break the loop at the emitter](../ideas/break-the-loop-at-the-emitter) — a
   filter that skips a run after GitHub created it is cleanup, not prevention;
   stop the feedback loop where the event is emitted, not where runs are caught.
+- [The child still points home](../ideas/the-child-still-points-home) — a
+  generated repo inherits pins the sweep can see and pointers it can't; the
+  template's baked-in links keep aiming at the parent until a human breaks on them.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
