@@ -42,6 +42,10 @@ lives inside GitHub repositories — and of letting that agent run this one.
 - [The child still points home](../ideas/the-child-still-points-home) — a
   generated repo inherits pins the sweep can see and pointers it can't; the
   template's baked-in links keep aiming at the parent until a human breaks on them.
+- [Not every finding is a fix](../ideas/not-every-finding-is-a-fix) — a reviewing
+  agent that can repair what it finds needs a taxonomy of restraint; classify each
+  finding's disposition before the fix tool fires, so "not now" and "not mine" are
+  first-class outcomes rather than things the loop discovers by exhausting itself.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
