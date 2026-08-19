@@ -46,6 +46,10 @@ lives inside GitHub repositories — and of letting that agent run this one.
   agent that can repair what it finds needs a taxonomy of restraint; classify each
   finding's disposition before the fix tool fires, so "not now" and "not mine" are
   first-class outcomes rather than things the loop discovers by exhausting itself.
+- [The next reader is an agent](../ideas/the-next-reader-is-an-agent) — a comment an
+  agent leaves has two audiences that pull apart: detail that helps a human is
+  context-pollution for the next agent, and a mention that credits the human
+  re-pings them when a bot triggered the run.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
