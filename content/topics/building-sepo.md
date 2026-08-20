@@ -50,6 +50,10 @@ lives inside GitHub repositories — and of letting that agent run this one.
   agent leaves has two audiences that pull apart: detail that helps a human is
   context-pollution for the next agent, and a mention that credits the human
   re-pings them when a bot triggered the run.
+- [Hand the fact, don't infer it](../ideas/hand-the-fact-dont-infer-it) — a
+  prompt-only stop rule asked the planner to infer fix history from round number;
+  it read the proxy as the fact and stopped before the one allowed fix ran. Carry
+  the authoritative count in deterministic code instead.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
