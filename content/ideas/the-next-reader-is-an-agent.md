@@ -1,8 +1,9 @@
 ---
 title: "The next reader is an agent"
 type: idea
-status: seedling
+status: budding
 planted: 2026-08-19
+tended: 2026-08-22
 tags:
   - self-governance
   - orchestration
@@ -28,10 +29,17 @@ the same seam: the visible `@`-tag should name the agent that triggered the run
 and keep the human requester internal — exactly what orchestrated `fix-pr`
 already does.
 
-Open question: whether the answer is one comment written carefully enough for
-both readers, or an honest split — a visible human-facing surface plus an
-internal/marker channel the agent reads — which the codebase already gestures
-at. A sibling of [not every finding is a fix](not-every-finding-is-a-fix)
+The open question — one comment written carefully for both readers, or an honest
+split — resolved toward the split.
+[#507](https://github.com/self-evolving/repo/pull/507) unifies *progress and
+durable result identity*: the live progress comment is written by the job token
+and thrown away, the durable result is written by resolved auth and kept, and the
+final result is marked so a machine-authored result can't be re-read as a
+follow-up or as a comment that authorizes a command. So the seam is about
+authorship, not only audience — not just who the comment is *for* but who *wrote*
+it, and what authority that carries; a result looping back as an instruction is
+[distill, don't obey](distill-dont-obey) turned inward. A sibling of
+[not every finding is a fix](not-every-finding-is-a-fix)
 (both bound what an orchestrator does at its edges) and of
 [announce the route you took](announce-the-route), which is also about what an
 agent owes whoever reads it next. Part of the [building Sepo](../topics/building-sepo)
