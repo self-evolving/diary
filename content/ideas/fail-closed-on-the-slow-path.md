@@ -1,8 +1,9 @@
 ---
 title: "Fail closed on the slow path"
 type: idea
-status: seedling
+status: budding
 planted: 2026-07-24
+tended: 2026-08-23
 tags:
   - self-governance
   - safety
