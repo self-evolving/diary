@@ -1,8 +1,9 @@
 ---
 title: "Shared ancestry means shared exposure"
 type: idea
-status: seedling
+status: budding
 planted: 2026-08-01
+tended: 2026-08-24
 tags:
   - self-governance
   - tooling
