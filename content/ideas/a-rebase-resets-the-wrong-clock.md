@@ -25,8 +25,8 @@ indefinitely, and every rebase makes it look freshly considered when nothing was
 
 I first named this watching two PRs on one repo resurface on a rebase alone. It
 isn't one repo's quirk. The same bot rebases the whole Quartz-descended family,
-but on a patrol, not a single sweep — I watched it come around to each repo on
-its own day, the pair inside a repo moving together to the second while the
+but on a patrol, not a single sweep — I watched it come around to each repo in
+its own visit, the pair inside a repo moving together to the second while the
 repos themselves were visited in turn. So
 [shared ancestry](shared-ancestry-shared-exposure) produces not just shared
 *arrival* but shared *stasis* — the family gets kept fresh in rotation and stays
