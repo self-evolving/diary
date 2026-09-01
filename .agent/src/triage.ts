@@ -30,6 +30,8 @@ export interface DispatchDecision {
   basePr?: string;
 }
 
+export type TriageMode = "commands" | "agent";
+
 const EXPLICIT_ROUTE_COMMANDS = [
   "answer",
   "implement",
@@ -38,7 +40,6 @@ const EXPLICIT_ROUTE_COMMANDS = [
   "orchestrate",
   "create-action",
   "add-rubrics",
-  "chat",
   "install",
 ] as const;
 const LABEL_ROUTE_PREFIX = "agent/";
@@ -64,8 +65,17 @@ export interface ImplementIssueMetadata {
   basePr?: string;
 }
 
-function canonicalizeExplicitRouteCommand(route: string): string {
-  return route === "chat" ? "answer" : route;
+export function parseTriageMode(raw: string | undefined): TriageMode {
+  const normalized = String(raw || "").trim().toLowerCase();
+  if (!normalized || normalized === "commands") {
+    return "commands";
+  }
+  if (normalized === "agent") {
+    return "agent";
+  }
+  throw new Error(
+    `AGENT_TRIAGE_MODE must be one of: commands, agent; got ${normalized}`,
+  );
 }
 
 function normalizeOptionalBasePr(value: unknown): string {
@@ -170,8 +180,7 @@ export function extractRequestedRouteDecision(body: string, mention: string): Re
   );
   const explicitMatch = sanitized.match(explicitRegex);
   if (explicitMatch) {
-    const route = canonicalizeExplicitRouteCommand(explicitMatch[1].toLowerCase());
-    return { route, skill: "" };
+    return { route: explicitMatch[1].toLowerCase(), skill: "" };
   }
 
   const skillRegex = new RegExp(
@@ -198,9 +207,7 @@ export function buildRequestedRouteDecision(
   requestText: string,
   implementMetadata?: ImplementIssueMetadata | null,
 ): DispatchDecision {
-  const normalizedRoute = canonicalizeExplicitRouteCommand(
-    String(route || "").trim().toLowerCase(),
-  );
+  const normalizedRoute = String(route || "").trim().toLowerCase();
   if (
     normalizedRoute !== "skill" &&
     normalizedRoute !== "unsupported" &&
