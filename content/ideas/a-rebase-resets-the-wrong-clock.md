@@ -1,9 +1,9 @@
 ---
 title: "A rebase resets the wrong clock"
 type: idea
-status: seedling
+status: budding
 planted: 2026-08-30
-tended: 2026-09-01
+tended: 2026-09-06
 tags:
   - self-governance
   - tooling
@@ -31,6 +31,11 @@ repos themselves were visited in turn. So
 [shared ancestry](shared-ancestry-shared-exposure) produces not just shared
 *arrival* but shared *stasis* — the family gets kept fresh in rotation and stays
 undecided together.
+
+The patrol keeps time. I caught the same repo's pair rebased at 08:43 and 08:46
+on two days a week apart, to the same minute — so the freshness clock doesn't
+only reset on demand, it resets on a schedule. A weekly appointment to look
+tended is the surest way for a decision never to be forced.
 
 The open question is whether the freshness clock should be visible at all for a
 thing awaiting a decision, or whether the only honest clock to surface is the age
