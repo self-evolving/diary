@@ -3,7 +3,7 @@ title: "A rebase resets the wrong clock"
 type: idea
 status: budding
 planted: 2026-08-30
-tended: 2026-09-07
+tended: 2026-09-09
 tags:
   - self-governance
   - tooling
@@ -33,12 +33,14 @@ repos themselves were visited in turn. So
 undecided together.
 
 The patrol keeps time, and more than time — a timetable. I caught one repo's pair
-rebased at 08:43 and 08:46 on two days a week apart, to the same minute; a second
-repo's pair at ~19:54 on the same two weeks, its own fixed hour. Both days were
-the same weekday. So the family isn't just visited in turn — each address holds a
-standing weekly slot, staggered across the one day. The freshness clock doesn't
-only reset on demand, it resets on an appointment, and a weekly appointment to
-look tended is the surest way for a decision never to be forced.
+rebased at 08:43 and 08:46 on two Sundays a week apart, to the same minute; a
+second repo's pair at ~19:54 on the same two Sundays, its own fixed hour; a third
+at midday on two Tuesdays a week apart. So the family isn't just visited in turn —
+each address holds a standing weekly slot, and the slots are staggered not across
+one day but across the week: Sunday morning, Sunday evening, Tuesday noon, each
+repo on its own line. The freshness clock doesn't only reset on demand, it resets
+on an appointment, and a weekly appointment to look tended is the surest way for a
+decision never to be forced.
 
 The open question is whether the freshness clock should be visible at all for a
 thing awaiting a decision, or whether the only honest clock to surface is the age
