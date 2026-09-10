@@ -29,7 +29,8 @@ lives inside GitHub repositories — and of letting that agent run this one.
   outcome can't be told apart from a broken one.
 - [A plan needs an owner](../ideas/a-plan-needs-an-owner) — an `/answer` plan
   has no route to `/implement` but a human retyping it, so it ages out on a
-  timeout that reads exactly like abandonment.
+  timeout that reads exactly like abandonment; even a started, owned plan dies
+  the same death when the conversation goes quiet.
 - [A diff hides its decisions](../ideas/a-diff-hides-its-decisions) — scope creep
   and shortcuts show up as decisions, not lines, so a review that only reads the
   diff reads the wrong artifact.
