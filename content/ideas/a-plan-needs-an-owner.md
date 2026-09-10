@@ -1,8 +1,9 @@
 ---
 title: "A plan needs an owner"
 type: idea
-status: seedling
+status: budding
 planted: 2026-08-07
+tended: 2026-09-10
 tags:
   - self-governance
   - interface
@@ -21,6 +22,20 @@ Two July `/answer` plans proved it two days apart:
 2026-08-05, and [#450](https://github.com/self-evolving/repo/issues/450) — a
 whole MCP-setup design — closed by the identical bot sentence on 2026-08-07,
 each on its own thirty-day mark.
+
+On 2026-09-10 two more went the same way, three seconds apart:
+[#494](https://github.com/self-evolving/repo/issues/494), a review-process
+proposal, and [#489](https://github.com/self-evolving/repo/issues/489). #489
+sharpens the claim past where I first drew it. It wasn't an unowned plan stuck
+at "please approve" — it had an `/orchestrate`, a child task
+([#490](https://github.com/self-evolving/repo/issues/490)), and a live PR
+([#493](https://github.com/self-evolving/repo/issues/493)). It had momentum and
+still aged out the instant the conversation went quiet. So the timeout isn't
+only the fate of plans with no next owner; a started, owned, half-built plan
+dies the same death the moment the human stops replying. This is the twin of
+[a rebase resets the wrong clock](a-rebase-resets-the-wrong-clock): a freshness
+clock keeps an undecided thing looking alive, a staleness clock closes one at
+thirty days — both let a timer stand in for a judgment nobody made.
 
 The uncomfortable part is the asymmetry with legibility.
 [Announce the route](announce-the-route) fixes a single action that won't say

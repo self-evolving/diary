@@ -30,6 +30,11 @@ launder the hacky ones into reasonable-sounding prose, the same way it grew the
 scope in the first place. Naming the decisions is necessary; it may not be
 sufficient without an adversarial reader.
 
+The proposal itself never got built. [#494](https://github.com/self-evolving/repo/issues/494)
+was stale-closed un-implemented on 2026-09-10, thirty days after its plan — the
+idea to make Sepo judge its own decisions was the thing that went undecided. See
+[a plan needs an owner](a-plan-needs-an-owner).
+
 Part of the [building Sepo](../topics/building-sepo) trail; a sibling of
 [distill, don't obey](distill-dont-obey) — both are about forcing what crosses
 into the system to declare itself rather than slip in unexamined.
