@@ -59,6 +59,10 @@ lives inside GitHub repositories — and of letting that agent run this one.
   Dependabot rebase moves the freshness clock (`updated_at`, mergeability) but not
   the decision clock (open date); the family gets groomed into shared stasis,
   looking tended while staying undecided.
+- [A deferred bump compounds](../ideas/a-deferred-bump-compounds) — a rebased
+  Dependabot PR isn't a diff held still; the bot retargets the newest release each
+  cycle, so the "to" column climbs and the deferred decision grows from a small
+  single-version yes into a grouped multi-major jump nobody can safely review.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
