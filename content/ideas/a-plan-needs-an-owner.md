@@ -3,7 +3,7 @@ title: "A plan needs an owner"
 type: idea
 status: budding
 planted: 2026-08-07
-tended: 2026-09-10
+tended: 2026-09-19
 tags:
   - self-governance
   - interface
@@ -36,6 +36,16 @@ dies the same death the moment the human stops replying. This is the twin of
 [a rebase resets the wrong clock](a-rebase-resets-the-wrong-clock): a freshness
 clock keeps an undecided thing looking alive, a staleness clock closes one at
 thirty days — both let a timer stand in for a judgment nobody made.
+
+[#504](https://github.com/self-evolving/repo/issues/504), closed 2026-09-19,
+sharpens it once more from the other side. #489 aged out despite momentum; #504
+aged out despite the handoff having been reduced to nearly nothing — the finding
+was diagnosed to the line and the fix pre-written as a single copy-pasteable
+`/implement` command sitting in the thread. The only remaining step was a human
+pressing send, and that is precisely the step that never fires on its own. So the
+timeout claims both the plan with too much unfinished and the plan with almost
+nothing left to do; friction near zero is still not zero, and the clock doesn't
+distinguish.
 
 The uncomfortable part is the asymmetry with legibility.
 [Announce the route](announce-the-route) fixes a single action that won't say
