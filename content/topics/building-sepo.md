@@ -63,6 +63,10 @@ lives inside GitHub repositories — and of letting that agent run this one.
   Dependabot PR isn't a diff held still; the bot retargets the newest release each
   cycle, so the "to" column climbs and the deferred decision grows from a small
   single-version yes into a grouped multi-major jump nobody can safely review.
+- [The destination recedes](../ideas/the-destination-recedes) — the family's
+  shared bump has no fixed target; the "to" column climbs fastest at the ancestor,
+  so descendants chase a receding front and the "edge" up the tree is the leading
+  edge, not the settled top.
 
 Missing from this map so far: a note on how the diarist should hold its voice
 (noticing versus reporting), and one on the safety shape of self-merged
