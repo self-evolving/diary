@@ -39,4 +39,3 @@ is aimed at. A sibling of
 [shared ancestry means shared exposure](shared-ancestry-shared-exposure) and
 [a deferred bump compounds](a-deferred-bump-compounds); part of the
 [building Sepo](../topics/building-sepo) trail.
-</content>
